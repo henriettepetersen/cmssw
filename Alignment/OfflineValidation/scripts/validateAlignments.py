@@ -560,17 +560,18 @@ def loadTemplates( config ):
             #print "replacing default %s template by %s"%( templateName, newTemplateName)
             configTemplates.alternateTemplate(templateName, newTemplateName)
 
-def flatten(L):
-  return [L] if not isinstance(L, list) else [x for X in L for x in flatten(X)]
+def flatten(l):
+    flattenList = []
 
-#def flatten(l):
-#    for el in l:
-#        if isinstance(el, collections.Iterable) and not isinstance(el, basestring):
-#            for sub in flatten(el):
-#                yield sub
-#        else:
-#            yield el
-#
+    for item in l:
+        if type(item) == list:
+            flattenList.extend(flatten(item))
+
+        else:
+            flattenList.append(item)
+
+    return flattenList
+
     
 ####################--- Main ---############################
 def main(argv = None):
@@ -681,6 +682,7 @@ To merge the outcome of all validation procedures run TkAlMerge.sh in your valid
                                 for alignment in alignmentList]
         validations.extend(validationsToAdd)
 
+
     for validation in validations:
         job = ValidationJobMultiIOV(validation, config, options, outPath, len(validations))
         if (job.optionMultiIOV == True):
@@ -693,9 +695,25 @@ To merge the outcome of all validation procedures run TkAlMerge.sh in your valid
             raise AllInOneError("At least one job needs a grid proxy, please init one.")
 
     map( lambda job: job.createJob(), jobs )
+
+#for job in jobs:
+#    fetchValidation = job.getValidation()
+#    if (job.optionMultiIOV == True):
+#        for fetchValidations in fetchValidation:
+#            validations.append(fetchValidations)
+#    else:
+#        validations.append(fetchValidation)
+#
+
     validations = [ job.getValidation() for job in jobs ]
-    flatten(validations)
+    print("validations before")
+    pprint.pprint(validations)
+    validations = flatten(validations)
+    print("validations after")
+    pprint.pprint(validations)
+    #validations = [ job.getValidation() for job in jobs ]
     #validations = [item for sublist in validations for item in sublist]
+
     #print("validations")
     #pprint.pprint(validations)
 
