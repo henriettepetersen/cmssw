@@ -385,6 +385,7 @@ class ValidationJobMultiIOV(ValidationBase):
             condor.write("output = $(scriptName).stdout" + "\n")
             condor.write('requirements = (OpSysAndVer =?= "CentOS7")' + '\n')
             condor.write('+JobFlavour = "tomorrow"' + "\n")
+            condor.write('+AccountingGroup     = "group_u_CMS.CAF.ALCA"' + '\n')
             condor.write("queue")
              
         with open("{}/validation.dagman".format(outdir), "w") as dagman:
@@ -559,14 +560,17 @@ def loadTemplates( config ):
             #print "replacing default %s template by %s"%( templateName, newTemplateName)
             configTemplates.alternateTemplate(templateName, newTemplateName)
 
-def flatten(l):
-    for el in l:
-        if isinstance(el, collections.Iterable) and not isinstance(el, basestring):
-            for sub in flatten(el):
-                yield sub
-        else:
-            yield el
+def flatten(L):
+  return [L] if not isinstance(L, list) else [x for X in L for x in flatten(X)]
 
+#def flatten(l):
+#    for el in l:
+#        if isinstance(el, collections.Iterable) and not isinstance(el, basestring):
+#            for sub in flatten(el):
+#                yield sub
+#        else:
+#            yield el
+#
     
 ####################--- Main ---############################
 def main(argv = None):
@@ -690,8 +694,8 @@ To merge the outcome of all validation procedures run TkAlMerge.sh in your valid
 
     map( lambda job: job.createJob(), jobs )
     validations = [ job.getValidation() for job in jobs ]
-    #flatten(validations)
-    validations = [item for sublist in validations for item in sublist]
+    flatten(validations)
+    #validations = [item for sublist in validations for item in sublist]
     #print("validations")
     #pprint.pprint(validations)
 
