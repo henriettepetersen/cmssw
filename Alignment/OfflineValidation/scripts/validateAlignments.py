@@ -240,10 +240,9 @@ class ValidationJob(ValidationBase):
                 scriptPaths = script.split("/")
                 scriptName = scriptPaths[-1]
                 scriptName = scriptName.split(".") 
-                jobName = "%s"%scriptName[1]+"_%s"%scriptName[2]
-                key = (self.valName, iov)
+                jobName = "%s"%scriptName[0] + "_%s"%scriptName[1]+"_%s"%scriptName[2]
+                key = (self.valType, self.valName, iov)
                 if key in ValidationJob.condorConf:
-                    #name[22:].replace(".", "_")
                     ValidationJob.condorConf[key].append((jobName, script, general["logdir"]))
                 else:
                     ValidationJob.condorConf[key] = [(jobName, script, general["logdir"])]
@@ -390,25 +389,25 @@ class ValidationJobMultiIOV(ValidationBase):
              
         with open("{}/validation.dagman".format(outdir), "w") as dagman:
             parents = {}
-            for (valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
+            for (valType, valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
                 
-                parents[(valName, iov)] = []
+                parents[(valType, valName, iov)] = []
                 for jobInfo in alignments: 
                     dagman.write("JOB {}_{} {}/validation.condor".format(jobInfo[0], iov, outdir) + "\n")
                     dagman.write('VARS {}_{} '.format(jobInfo[0], iov) + 'scriptName="{}"'.format('.'.join(jobInfo[1].split('.')[:-1])) + "\n")
-                    parents[(valName, iov)].append('{}_{}'.format(jobInfo[0], iov))
+                    parents[(valType, valName, iov)].append('{}_{}'.format(jobInfo[0], iov))
                     dagman.write("\n")
 
                 path =  os.path.join(jobInfo[2], "TkAlMerge.sh")
                 if os.path.exists( path ):
-                    dagman.write("JOB Merge_{}_{} {}/validation.condor".format(valName, iov, outdir) + "\n")
-                    dagman.write("VARS Merge_{}_{} ".format(valName, iov) + 'scriptName="{}"'.format(os.path.join(jobInfo[2], "TkAlMerge")) + "\n")
+                    dagman.write("JOB Merge_{}_{}_{} {}/validation.condor".format(valType, valName, iov, outdir) + "\n")
+                    dagman.write("VARS Merge_{}_{}_{} ".format(valType, valName, iov) + 'scriptName="{}"'.format(os.path.join(jobInfo[2], "TkAlMerge")) + "\n")
                     dagman.write("\n")
                 else:
                     raise AllInOneError("Merge script '[%s]' not found!"%path)
 
-            for (valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
-                dagman.write('PARENT {} '.format(" ".join([parent for parent in parents[(valName, iov)]])) + 'CHILD Merge_{}_{}'.format(valName, iov) + "\n")
+            for (valType, valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
+                dagman.write('PARENT {} '.format(" ".join([parent for parent in parents[(valType, valName, iov)]])) + 'CHILD Merge_{}_{}_{}'.format(valType, valName, iov) + "\n")
 
         #print("condorConf")
         #pprint.pprint(ValidationJob.condorConf)
@@ -450,13 +449,14 @@ def createMergeScript( path, validations, options ):
             validation.defaultReferenceName = iov
         for referenceName in validation.filesToCompare:
             validationtype = type(validation)
+            validationName = validation.name
             if issubclass(validationtype, PreexistingValidation):
                 #find the actual validationtype
                 for parentclass in validationtype.mro():
                     if not issubclass(parentclass, PreexistingValidation):
                         validationtype = parentclass
                         break
-            key = (validationtype, referenceName)
+            key = (validationtype, validationName, referenceName)
 
 
             if key in comparisonLists:
@@ -482,10 +482,11 @@ def createMergeScript( path, validations, options ):
                 repMap[key]["mergeParallelFilePrefixes"] = ""
                 repMap[key]["createResultsDirectory"]=""
     
-
+    print("comparisonLists")
+    #pprint.pprint(comparisonLists)
     anythingToMerge = []
 
-    for (validationType, referenceName), validations in comparisonLists.iteritems():
+    for (validationtype, validationName, referenceName), validations in comparisonLists.iteritems():
         #pprint.pprint("validations")
         #pprint.pprint(validations)
         for validation in validations:
@@ -493,20 +494,20 @@ def createMergeScript( path, validations, options ):
             #pprint.pprint(validation)
             #parallel merging
             if not (isinstance(validation, PreexistingValidation) or validation.NJobs == 1 or not isinstance(validation, ParallelValidation)):
-                if (validationtype, referenceName) not in anythingToMerge:
-                    anythingToMerge.append((validationtype, referenceName))
-                    repMap[(validationType, referenceName)]["doMerge"] += '\n\n\n\necho -e "\n\nMerging results from %s jobs"\n\n' % validationType.valType
+                if (validationtype, validationName, referenceName) not in anythingToMerge:
+                    anythingToMerge.append((validationtype, validationName, referenceName))
+                    repMap[(validationtype, validationName, referenceName)]["doMerge"] += '\n\n\n\necho -e "\n\nMerging results from %s jobs"\n\n' % validationtype.valType
                     validation.getRepMap()
-                    repMap[(validationType, referenceName)]["beforeMerge"] += validationType.doInitMerge()
-                repMap[(validationType, referenceName)]["doMerge"] += validation.doMerge()
+                    repMap[(validationtype, validationName, referenceName)]["beforeMerge"] += validationtype.doInitMerge()
+                repMap[(validationtype, validationName, referenceName)]["doMerge"] += validation.doMerge()
                 for f in validation.getRepMap()["outputFiles"]:
 		            longName = os.path.join("/eos/cms/store/group/alca_trackeralign/AlignmentValidation/",
 		                                    validation.getRepMap()["eosdir"], f)
-		            repMap[(validationType, referenceName)]["rmUnmerged"] += "    rm "+longName+"\n"
+		            repMap[(validationtype, validationName, referenceName)]["rmUnmerged"] += "    rm "+longName+"\n"
 		        
 		        
     
-        repMap[(validationType, referenceName)]["rmUnmerged"] += ("else\n"
+        repMap[(validationtype, validationName, referenceName)]["rmUnmerged"] += ("else\n"
                                                                   "    echo -e \\n\"WARNING: Merging failed, unmerged"
                                                                   " files won't be deleted.\\n"
                                                                   "(Ignore this warning if merging was done earlier)\"\n"
@@ -514,42 +515,44 @@ def createMergeScript( path, validations, options ):
     
     
         if anythingToMerge:
-            repMap[(validationType, referenceName)]["DownloadData"] += replaceByMap( configTemplates.mergeParallelResults, repMap[(validationType, referenceName)] )
+            repMap[(validationtype, validationName, referenceName)]["DownloadData"] += replaceByMap( configTemplates.mergeParallelResults, repMap[(validationtype, validationName, referenceName)] )
         else:
-            repMap[(validationType, referenceName)]["DownloadData"] = ""
+            repMap[(validationtype, validationName, referenceName)]["DownloadData"] = ""
 
-        repMap[(validationType, referenceName)]["RunValidationPlots"] = ""
-        repMap[(validationType, referenceName)]["plottingscriptpath"] = ""
-        if issubclass(validationType, ValidationWithPlots):
+        repMap[(validationtype, validationName, referenceName)]["RunValidationPlots"] = ""
+        repMap[(validationtype, validationName, referenceName)]["plottingscriptpath"] = ""
+        if issubclass(validationtype, ValidationWithPlots):
             validation.getRepMap()
-            repMap[(validationType, referenceName)]["RunValidationPlots"] = validationType.doRunPlots(validations)
+            repMap[(validationtype, validationName, referenceName)]["RunValidationPlots"] = validationtype.doRunPlots(validations)
 
-        repMap[(validationType, referenceName)]["CompareAlignments"] = "#run comparisons"
-        if issubclass(validationType, ValidationWithComparison):
-            repMap[(validationType, referenceName)]["CompareAlignments"] += validationType.doComparison(validations)
+        repMap[(validationtype, validationName, referenceName)]["CompareAlignments"] = "#run comparisons"
+        if issubclass(validationtype, ValidationWithComparison):
+            repMap[(validationtype, validationName, referenceName)]["CompareAlignments"] += validationtype.doComparison(validations)
     
         #if not merging parallel, add code to create results directory and set merge script name accordingly
         if validation.config.has_section("IOV"):
-            repMap[(validationType, referenceName)]["createResultsDirectory"]=replaceByMap(configTemplates.createResultsDirectoryTemplate, repMap[(validationType, referenceName)])
-            filePath = os.path.join(repMap[(validationType, referenceName)]["scriptsdir"], "TkAlMerge.sh")
+            repMap[(validationtype, validationName, referenceName)]["createResultsDirectory"]=replaceByMap(configTemplates.createResultsDirectoryTemplate, repMap[(validationtype, validationName, referenceName)])
+            filePath = os.path.join(repMap[(validationtype, validationName, referenceName)]["scriptsdir"], "TkAlMerge.sh")
         else:
-            repMap[(validationType, referenceName)]["createResultsDirectory"]=replaceByMap(configTemplates.createResultsDirectoryTemplate, repMap[(validationType, referenceName)])
+            repMap[(validationtype, validationName, referenceName)]["createResultsDirectory"]=replaceByMap(configTemplates.createResultsDirectoryTemplate, repMap[(validationtype, validationName, referenceName)])
             filePath = os.path.join(path, "TkAlMerge.sh")
-    
+
+        #print("referenceName")
+        #print(referenceName)    
         theFile = open( filePath, "w" )
-        theFile.write( replaceByMap( configTemplates.mergeTemplate, repMap[(validationType, referenceName)]) )
+        theFile.write( replaceByMap( configTemplates.mergeTemplate, repMap[(validationtype, validationName, referenceName)]) )
         theFile.close()
-        os.chmod(path,0o755)
+        os.chmod(filePath,0o755)
         #print("scriptsdir")
-        #pprint.pprint(repMap[(validationType, referenceName)]["scriptsdir"])
+        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["scriptsdir"])
         #print("workdir")
-        #pprint.pprint(repMap[(validationType, referenceName)]["workdir"])
+        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["workdir"])
         #print("datadir")
-        #pprint.pprint(repMap[(validationType, referenceName)]["datadir"])
+        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["datadir"])
         #print("eosdir")
-        #pprint.pprint(repMap[(validationType, referenceName)]["eosdir"])
+        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["eosdir"])
         #print("logdir")
-        #pprint.pprint(repMap[(validationType, referenceName)]["logdir"])
+        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["logdir"])
     
 def loadTemplates( config ):
     if config.has_section("alternateTemplates"):
@@ -696,26 +699,8 @@ To merge the outcome of all validation procedures run TkAlMerge.sh in your valid
 
     map( lambda job: job.createJob(), jobs )
 
-#for job in jobs:
-#    fetchValidation = job.getValidation()
-#    if (job.optionMultiIOV == True):
-#        for fetchValidations in fetchValidation:
-#            validations.append(fetchValidations)
-#    else:
-#        validations.append(fetchValidation)
-#
-
     validations = [ job.getValidation() for job in jobs ]
-    print("validations before")
-    pprint.pprint(validations)
     validations = flatten(validations)
-    print("validations after")
-    pprint.pprint(validations)
-    #validations = [ job.getValidation() for job in jobs ]
-    #validations = [item for sublist in validations for item in sublist]
-
-    #print("validations")
-    #pprint.pprint(validations)
 
     createMergeScript(outPath, validations, options)
 

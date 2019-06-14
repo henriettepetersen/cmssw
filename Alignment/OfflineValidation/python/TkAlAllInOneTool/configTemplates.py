@@ -47,10 +47,10 @@ scriptTemplate="""#!/bin/bash
 #init
 #ulimit -v 3072000
 #export STAGE_SVCCLASS=cmscafuser
-#save path to the LSF batch working directory  (/pool/lsf)
+#save path to the condor batch working directory  (/pool/condor)
 
-export LSFWORKDIR=`pwd -P`
-echo LSF working directory is $LSFWORKDIR
+export CONDORWORKDIR=`pwd -P`
+echo CONDOR working directory is $CONDORWORKDIR
 source /afs/cern.ch/cms/caf/setup.sh
 export X509_USER_PROXY=.oO[scriptsdir]Oo./.user_proxy
 cd .oO[CMSSW_BASE]Oo./src
@@ -74,8 +74,8 @@ then
     rm -f .oO[workdir]Oo./*
     cd .oO[workdir]Oo.
 else
-    mkdir -p $LSFWORKDIR/TkAllInOneTool
-    cd $LSFWORKDIR/TkAllInOneTool
+    mkdir -p $CONDORWORKDIR/TkAllInOneTool
+    cd $CONDORWORKDIR/TkAllInOneTool
 fi
 
 # rm -f .oO[workdir]Oo./*
