@@ -222,9 +222,24 @@ class ValidationJob(ValidationBase):
         #else:
         #    if self.validation.jobid:
         #        print("jobid {} will be ignored, since the validation {} is not preexisting".format(self.validation.jobid, self.validation.name))
-
         general = self.config.getGeneral()
         log = ""
+
+        if self.preexisting:
+            if self.validation.config.has_section("IOV"):
+                iov = self.validation.config.get("IOV", "iov")
+            else:
+                iov = "singleIOV"
+            preexistingValType = self.valType
+            originalValType = preexistingValType.replace('preexisting', '')
+            key = (originalValType, self.validation.originalValName, iov)
+            if key in ValidationJob.condorConf:
+                ValidationJob.condorConf[key].append(("preexisting", "", general["logdir"]))
+            else:
+                ValidationJob.condorConf[key] = [("preexisting", "", general["logdir"])]
+            log = ">             " + self.validation.name + " is already validated."
+            return log
+
         for script in self.scripts:
             name = os.path.splitext( os.path.basename( script) )[0]
             ValidationJob.jobCount += 1
@@ -290,14 +305,14 @@ class ValidationJobMultiIOV(ValidationBase):
             self.config = config 
             self.options = options
             self.outPath = outPath
-            self.validations = self.__performMultiIOV(self.validation, self.config,
+            self.validations = self.__performMultiIOV(self.validation, self.alignments, self.config,
                                                   self.options, self.outPath)
 
 
-    def __performMultiIOV(self, validation, config, options, outPath):
+    def __performMultiIOV(self, validation, alignments, config, options, outPath):
         validations = []
         if self.valType == "compare":
-            alignmentsList = self.alignments.split( "," )
+            alignmentsList = alignments.split( "," )
             firstAlignList = alignmentsList[0].split()
             firstAlignName = firstAlignList[0].strip()
             secondAlignList = alignmentsList[1].split()
@@ -332,6 +347,15 @@ class ValidationJobMultiIOV(ValidationBase):
 
             return validations
 
+        if "preexisting" in self.valType:
+            preexistingValType = self.valType
+            preexistingValSection = self.valSection
+            preexistingEosdir = self.config.get( self.valSection, "eosdirName" )
+            originalValType = preexistingValType.replace('preexisting', '')
+            originalValName = self.config.get( self.valSection, "originalValName" )
+            self.valSection = originalValType + ":" + originalValName
+            originalAlignment = self.valName
+
         datasetList = self.config.get( self.valSection, "dataset" )
         datasetList = re.sub(r"\s+", "", datasetList, flags=re.UNICODE).split( "," )
         for dataset in datasetList:
@@ -347,16 +371,36 @@ class ValidationJobMultiIOV(ValidationBase):
                     tmpConfig = BetterConfigParser()
                     tmpConfig.read( options.config )
                     general = tmpConfig.getGeneral()
+                    if "preexisting" in self.valType:
+                        valType = originalValType
+                        valName = originalValName
+                    else:
+                        valType = self.valType
+                        valName = self.valName
                     tmpConfig.add_section("IOV")
                     tmpConfig.set("IOV", "iov", iov)
                     tmpConfig.set( self.valSection, "dataset", datasetName )
-                    tmpConfig.set("internals","workdir",os.path.join(general["workdir"], options.Name, self.valType + "_" + self.valName + "_%s"%iov) )
-                    tmpConfig.set("internals","scriptsdir",os.path.join(outPath, self.valType + "_" + self.valName + "_%s"%iov) )
-                    tmpConfig.set("general","datadir",os.path.join(general["datadir"], options.Name, self.valType + "_" + self.valName + "_%s"%iov) )
-                    tmpConfig.set("general","logdir",os.path.join(general["logdir"], options.Name, self.valType + "_" + self.valName + "_%s"%iov) )
-                    tmpConfig.set("general","eosdir",os.path.join("AlignmentValidation", general["eosdir"], options.Name, self.valType + "_" + self.valName + "_%s"%iov) )
+                    tmpConfig.set("internals","workdir",os.path.join(general["workdir"], options.Name, valType + "_" + valName + "_%s"%iov) )
+                    tmpConfig.set("internals","scriptsdir",os.path.join(outPath, valType + "_" + valName + "_%s"%iov) )
+                    tmpConfig.set("general","datadir",os.path.join(general["datadir"], options.Name, valType + "_" + valName + "_%s"%iov) )
+                    tmpConfig.set("general","logdir",os.path.join(general["logdir"], options.Name, valType + "_" + valName + "_%s"%iov) )
+                    tmpConfig.set("general","eosdir",os.path.join("AlignmentValidation", general["eosdir"], options.Name, valType + "_" + valName + "_%s"%iov) )
+                    if "preexisting" in self.valType:
+                        if self.valType == "preexistingoffline":
+                            validationClassName = "AlignmentValidation"
+                        elif self.valType == "preexistingmcValidate":
+                            validationClassName = "MonteCarloValidation"
+                        elif self.valType == "preexistingsplit":
+                            validationClassName = "TrackSplittingValidation"
+                        elif self.valType == "preexistingprimaryvertex":
+                            validationClassName = "PrimaryVertexValidation"
+                        else:
+                            raise AllInOneError("Unknown validation mode for preexisting option:'%s'"%self.valType)
+                        preexistingEosdirPath = os.path.join("AlignmentValidation", preexistingEosdir, valType + "_" + valName + "_%s"%iov)
+                        file = "/eos/cms/store/group/alca_trackeralign/AlignmentValidation/" + "%s"%preexistingEosdirPath + "/%s"%validationClassName + "_%s"%originalValName + "_%s"%originalAlignment + ".root"
+                        tmpConfig.set(preexistingValSection, "file", file)
                     tmpOptions = copy.deepcopy(options) 
-                    tmpOptions.Name = os.path.join(options.Name, self.valType + "_" + self.valName + "_%s"%iov)
+                    tmpOptions.Name = os.path.join(options.Name, valType + "_" + valName + "_%s"%iov)
                     tmpOptions.config = tmpConfig
                     newOutPath = os.path.abspath( tmpOptions.Name )
                     if not os.path.exists( newOutPath ):
@@ -393,14 +437,17 @@ class ValidationJobMultiIOV(ValidationBase):
              
         with open("{}/validation.dagman".format(outdir), "w") as dagman:
             parents = {}
+            #print("ValidationJob.condorConf")
+            #pprint.pprint(ValidationJob.condorConf)
             for (valType, valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
                 
                 parents[(valType, valName, iov)] = []
-                for jobInfo in alignments: 
-                    dagman.write("JOB {}_{} {}/validation.condor".format(jobInfo[0], iov, outdir) + "\n")
-                    dagman.write('VARS {}_{} '.format(jobInfo[0], iov) + 'scriptName="{}"'.format('.'.join(jobInfo[1].split('.')[:-1])) + "\n")
-                    parents[(valType, valName, iov)].append('{}_{}'.format(jobInfo[0], iov))
-                    dagman.write("\n")
+                for jobInfo in alignments:
+                    if not "preexisting" in jobInfo[0]:
+                        dagman.write("JOB {}_{} {}/validation.condor".format(jobInfo[0], iov, outdir) + "\n")
+                        dagman.write('VARS {}_{} '.format(jobInfo[0], iov) + 'scriptName="{}"'.format('.'.join(jobInfo[1].split('.')[:-1])) + "\n")
+                        parents[(valType, valName, iov)].append('{}_{}'.format(jobInfo[0], iov))
+                        dagman.write("\n")
 
                 path =  os.path.join(jobInfo[2], "TkAlMerge.sh")
                 if os.path.exists( path ):
@@ -411,7 +458,8 @@ class ValidationJobMultiIOV(ValidationBase):
                     raise AllInOneError("Merge script '[%s]' not found!"%path)
 
             for (valType, valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
-                dagman.write('PARENT {} '.format(" ".join([parent for parent in parents[(valType, valName, iov)]])) + 'CHILD Merge_{}_{}_{}'.format(valType, valName, iov) + "\n")
+                if len(parents[(valType, valName, iov)]) != 0:
+                    dagman.write('PARENT {} '.format(" ".join([parent for parent in parents[(valType, valName, iov)]])) + 'CHILD Merge_{}_{}_{}'.format(valType, valName, iov) + "\n")
 
         #print("condorConf")
         #pprint.pprint(ValidationJob.condorConf)
@@ -455,6 +503,7 @@ def createMergeScript( path, validations, options ):
             validationtype = type(validation)
             validationName = validation.name
             if issubclass(validationtype, PreexistingValidation):
+                validationName = validation.originalValName
                 #find the actual validationtype
                 for parentclass in validationtype.mro():
                     if not issubclass(parentclass, PreexistingValidation):
@@ -486,14 +535,21 @@ def createMergeScript( path, validations, options ):
                 repMap[key]["mergeParallelFilePrefixes"] = ""
                 repMap[key]["createResultsDirectory"]=""
     
-    print("comparisonLists")
+    #print("comparisonLists")
     #pprint.pprint(comparisonLists)
     anythingToMerge = []
 
     for (validationtype, validationName, referenceName), validations in comparisonLists.iteritems():
         #pprint.pprint("validations")
         #pprint.pprint(validations)
+        globalDictionaries.plottingOptions = {}
+        map( lambda validation: validation.getRepMap(), validations )
+        #plotInfo = "plots:offline"
+        #allPlotInfo = dict(validations[0].config.items(plotInfo))
+        #repMap[(validationtype, validationName, referenceName)].update(allPlotInfo)
+
         for validation in validations:
+            validation.getRepMap()
             #pprint.pprint("validation in validations")
             #pprint.pprint(validation)
             #parallel merging
@@ -501,7 +557,6 @@ def createMergeScript( path, validations, options ):
                 if (validationtype, validationName, referenceName) not in anythingToMerge:
                     anythingToMerge.append((validationtype, validationName, referenceName))
                     repMap[(validationtype, validationName, referenceName)]["doMerge"] += '\n\n\n\necho -e "\n\nMerging results from %s jobs"\n\n' % validationtype.valType
-                    validation.getRepMap()
                     repMap[(validationtype, validationName, referenceName)]["beforeMerge"] += validationtype.doInitMerge()
                 repMap[(validationtype, validationName, referenceName)]["doMerge"] += validation.doMerge()
                 for f in validation.getRepMap()["outputFiles"]:
@@ -526,7 +581,6 @@ def createMergeScript( path, validations, options ):
         repMap[(validationtype, validationName, referenceName)]["RunValidationPlots"] = ""
         repMap[(validationtype, validationName, referenceName)]["plottingscriptpath"] = ""
         if issubclass(validationtype, ValidationWithPlots):
-            validation.getRepMap()
             repMap[(validationtype, validationName, referenceName)]["RunValidationPlots"] = validationtype.doRunPlots(validations)
 
         repMap[(validationtype, validationName, referenceName)]["CompareAlignments"] = "#run comparisons"
@@ -534,7 +588,7 @@ def createMergeScript( path, validations, options ):
             repMap[(validationtype, validationName, referenceName)]["CompareAlignments"] += validationtype.doComparison(validations)
     
         #if not merging parallel, add code to create results directory and set merge script name accordingly
-        if validation.config.has_section("IOV"):
+        if validations[0].config.has_section("IOV"):
             repMap[(validationtype, validationName, referenceName)]["createResultsDirectory"]=replaceByMap(configTemplates.createResultsDirectoryTemplate, repMap[(validationtype, validationName, referenceName)])
             filePath = os.path.join(repMap[(validationtype, validationName, referenceName)]["scriptsdir"], "TkAlMerge.sh")
         else:
