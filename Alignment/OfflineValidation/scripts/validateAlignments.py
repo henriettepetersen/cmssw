@@ -48,7 +48,7 @@ from Alignment.OfflineValidation.TkAlAllInOneTool.plottingOptions \
 import Alignment.OfflineValidation.TkAlAllInOneTool.globalDictionaries \
     as globalDictionaries
 from Alignment.OfflineValidation.TkAlAllInOneTool.overlapValidation \
-    import OverlapValidation 
+    import OverlapValidation
 
 ####################--- Classes ---############################
 #
@@ -161,33 +161,33 @@ class ValidationJob(ValidationBase):
                 secondAlign = Alignment( secondAlignName, config,
                                          secondRun )
                 secondAlignName = secondAlign.name
-                
+
             validation = GeometryComparison( name, firstAlign, secondAlign,
                                              config,
                                              self.commandLineOptions.getImages)
         elif valType == "offline":
-            validation = OfflineValidation( name, 
+            validation = OfflineValidation( name,
                 Alignment( alignments.strip(), config ), config )
         elif valType == "preexistingoffline":
             validation = PreexistingOfflineValidation(name, config)
         elif valType == "offlineDQM":
-            validation = OfflineValidationDQM( name, 
+            validation = OfflineValidationDQM( name,
                 Alignment( alignments.strip(), config ), config )
         elif valType == "mcValidate":
-            validation = MonteCarloValidation( name, 
+            validation = MonteCarloValidation( name,
                 Alignment( alignments.strip(), config ), config )
         elif valType == "preexistingmcValidate":
             validation = PreexistingMonteCarloValidation(name, config)
         elif valType == "split":
-            validation = TrackSplittingValidation( name, 
+            validation = TrackSplittingValidation( name,
                 Alignment( alignments.strip(), config ), config )
         elif valType == "preexistingsplit":
             validation = PreexistingTrackSplittingValidation(name, config)
         elif valType == "zmumu":
-            validation = ZMuMuValidation( name, 
+            validation = ZMuMuValidation( name,
                 Alignment( alignments.strip(), config ), config )
         elif valType == "primaryvertex":
-            validation = PrimaryVertexValidation( name, 
+            validation = PrimaryVertexValidation( name,
                 Alignment( alignments.strip(), config ), config )
         elif valType == "preexistingprimaryvertex":
             validation = PreexistingPrimaryVertexValidation(name, self.__config)
@@ -258,7 +258,7 @@ class ValidationJob(ValidationBase):
                     iov = "singleIOV"
                 scriptPaths = script.split("/")
                 scriptName = scriptPaths[-1]
-                scriptName = scriptName.split(".") 
+                scriptName = scriptName.split(".")
                 jobName = "%s"%scriptName[0] + "_%s"%scriptName[1]+"_%s"%scriptName[2]
                 key = (self.valType, self.valName, iov)
                 if key in ValidationJob.condorConf:
@@ -291,7 +291,7 @@ class ValidationJob(ValidationBase):
         else:
             self.start += 1
             return self.end[self.start-1]
-        
+
 
 class ValidationJobMultiIOV(ValidationBase):
 
@@ -302,7 +302,7 @@ class ValidationJobMultiIOV(ValidationBase):
         self.optionMultiIOV = self.config.getboolean( self.valSection, "multiIOV" )
         if self.optionMultiIOV == True:
             self.validation = validation
-            self.config = config 
+            self.config = config
             self.options = options
             self.outPath = outPath
             self.validations = self.__performMultiIOV(self.validation, self.alignments, self.config,
@@ -334,7 +334,7 @@ class ValidationJobMultiIOV(ValidationBase):
                     tmpConfig.set("general","datadir",os.path.join(general["datadir"], options.Name, self.valType + "_%s"%compareAlignments + "_%s"%iov) )
                     tmpConfig.set("general","logdir",os.path.join(general["logdir"], options.Name, self.valType + "_%s"%compareAlignments + "_%s"%iov) )
                     tmpConfig.set("general","eosdir",os.path.join("AlignmentValidation", general["eosdir"], options.Name, self.valType + "_%s"%compareAlignments + "_%s"%iov) )
-                    tmpOptions = copy.deepcopy(options) 
+                    tmpOptions = copy.deepcopy(options)
                     tmpOptions.Name = os.path.join(options.Name, self.valType + "_%s"%compareAlignments + "_%s"%iov)
                     tmpOptions.config = tmpConfig
                     newOutPath = os.path.abspath( tmpOptions.Name )
@@ -399,7 +399,7 @@ class ValidationJobMultiIOV(ValidationBase):
                         preexistingEosdirPath = os.path.join("AlignmentValidation", preexistingEosdir, valType + "_" + valName + "_%s"%iov)
                         file = "/eos/cms/store/group/alca_trackeralign/AlignmentValidation/" + "%s"%preexistingEosdirPath + "/%s"%validationClassName + "_%s"%originalValName + "_%s"%originalAlignment + ".root"
                         tmpConfig.set(preexistingValSection, "file", file)
-                    tmpOptions = copy.deepcopy(options) 
+                    tmpOptions = copy.deepcopy(options)
                     tmpOptions.Name = os.path.join(options.Name, valType + "_" + valName + "_%s"%iov)
                     tmpOptions.config = tmpConfig
                     newOutPath = os.path.abspath( tmpOptions.Name )
@@ -432,15 +432,17 @@ class ValidationJobMultiIOV(ValidationBase):
             condor.write("output = $(scriptName).stdout" + "\n")
             condor.write('requirements = (OpSysAndVer =?= "CentOS7")' + '\n')
             condor.write('+JobFlavour = "tomorrow"' + "\n")
+            condor.write('+RequestMemory = {}'.format(1540) + "\n")
+            condor.write('+FileTransferDownloadBytes = {}'.format(1540) + "\n")
             condor.write('+AccountingGroup     = "group_u_CMS.CAF.ALCA"' + '\n')
             condor.write("queue")
-             
+
         with open("{}/validation.dagman".format(outdir), "w") as dagman:
             parents = {}
             #print("ValidationJob.condorConf")
             #pprint.pprint(ValidationJob.condorConf)
             for (valType, valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
-                
+
                 parents[(valType, valName, iov)] = []
                 for jobInfo in alignments:
                     if not "preexisting" in jobInfo[0]:
@@ -534,7 +536,7 @@ def createMergeScript( path, validations, options ):
                 repMap[key]["beforeMerge"] = ""
                 repMap[key]["mergeParallelFilePrefixes"] = ""
                 repMap[key]["createResultsDirectory"]=""
-    
+
     #print("comparisonLists")
     #pprint.pprint(comparisonLists)
     anythingToMerge = []
@@ -563,16 +565,16 @@ def createMergeScript( path, validations, options ):
 		            longName = os.path.join("/eos/cms/store/group/alca_trackeralign/AlignmentValidation/",
 		                                    validation.getRepMap()["eosdir"], f)
 		            repMap[(validationtype, validationName, referenceName)]["rmUnmerged"] += "    rm "+longName+"\n"
-		        
-		        
-    
+
+
+
         repMap[(validationtype, validationName, referenceName)]["rmUnmerged"] += ("else\n"
                                                                   "    echo -e \\n\"WARNING: Merging failed, unmerged"
                                                                   " files won't be deleted.\\n"
                                                                   "(Ignore this warning if merging was done earlier)\"\n"
                                                                   "fi\n")
-    
-    
+
+
         if anythingToMerge:
             repMap[(validationtype, validationName, referenceName)]["DownloadData"] += replaceByMap( configTemplates.mergeParallelResults, repMap[(validationtype, validationName, referenceName)] )
         else:
@@ -586,7 +588,7 @@ def createMergeScript( path, validations, options ):
         repMap[(validationtype, validationName, referenceName)]["CompareAlignments"] = "#run comparisons"
         if issubclass(validationtype, ValidationWithComparison):
             repMap[(validationtype, validationName, referenceName)]["CompareAlignments"] += validationtype.doComparison(validations)
-    
+
         #if not merging parallel, add code to create results directory and set merge script name accordingly
         if validations[0].config.has_section("IOV"):
             repMap[(validationtype, validationName, referenceName)]["createResultsDirectory"]=replaceByMap(configTemplates.createResultsDirectoryTemplate, repMap[(validationtype, validationName, referenceName)])
@@ -596,7 +598,7 @@ def createMergeScript( path, validations, options ):
             filePath = os.path.join(path, "TkAlMerge.sh")
 
         #print("referenceName")
-        #print(referenceName)    
+        #print(referenceName)
         theFile = open( filePath, "w" )
         theFile.write( replaceByMap( configTemplates.mergeTemplate, repMap[(validationtype, validationName, referenceName)]) )
         theFile.close()
@@ -611,7 +613,7 @@ def createMergeScript( path, validations, options ):
         #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["eosdir"])
         #print("logdir")
         #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["logdir"])
-    
+
 def loadTemplates( config ):
     if config.has_section("alternateTemplates"):
         for templateName in config.options("alternateTemplates"):
@@ -633,7 +635,7 @@ def flatten(l):
 
     return flattenList
 
-    
+
 ####################--- Main ---############################
 def main(argv = None):
     if argv == None:
@@ -703,7 +705,7 @@ To merge the outcome of all validation procedures run TkAlMerge.sh in your valid
             print ( "Please use the parameter '-N' or '--Name' to specify "
                     "the task for which you want a status report." )
             return 1
-            
+
     # set output path
     outPath = os.path.abspath( options.Name )
 
@@ -766,9 +768,9 @@ To merge the outcome of all validation procedures run TkAlMerge.sh in your valid
     map( lambda job: job.runJob(), jobs )
 
     ValidationJobMultiIOV.runCondorJobs(outPath)
-    
 
-if __name__ == "__main__":        
+
+if __name__ == "__main__":
     # main(["-n","-N","test","-c","defaultCRAFTValidation.ini,latestObjects.ini","--getImages"])
     if "-d" in sys.argv[1:] or "--debug" in sys.argv[1:]:
         main()
