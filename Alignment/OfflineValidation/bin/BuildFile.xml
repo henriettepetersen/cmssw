@@ -7,3 +7,6 @@
 
 <bin name="DMRtrends" file="DMRtrends.cc" />
 
+<bin name="validateAlignment" file="validateAlignment.cc,AllInOneConfig.cc">
+    <use name="boost" />
+</bin>

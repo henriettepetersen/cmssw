@@ -1,6 +1,6 @@
 universe = vanilla
 executable = $(scriptName).sh
-log = $(scriptName).log
+log = $(scriptName).stdlog
 error = $(scriptName).stderr
 output = $(scriptName).stdout
 requirements = (OpSysAndVer =?= "CentOS7")
