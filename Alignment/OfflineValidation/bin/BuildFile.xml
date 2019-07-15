@@ -3,10 +3,13 @@
 <use name="root" />
 <use name="rootgraphics"/>
 
+<use name="boost" />
+<use name="boost_program_options"/>
+
 <lib name="stdc++fs" />
 
+<bin name="DMRsingle" file="DMRsingle.cc" />
+<bin name="DMRmerge" file="DMRmerge.cc" />
 <bin name="DMRtrends" file="DMRtrends.cc" />
 
-<bin name="validateAlignment" file="validateAlignment.cc,AllInOneConfig.cc">
-    <use name="boost" />
-</bin>
+<bin name="validateAlignment" file="validateAlignment.cc" />
