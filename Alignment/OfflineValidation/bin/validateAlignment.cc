@@ -26,25 +26,36 @@ namespace fs = std::experimental::filesystem;
 
 using namespace std;
 
-// just a "translator" to get the IOVs from a comma-separated string into a vector of integers
-struct GetIOVs {
-    typedef string internal_type; // mandatory to define translator
-    typedef vector<int> external_type; // id.
+// just a "translator" to get the IOVs from a space-separated string into a vector of integers
+template<typename T> class Tokenise {
 
-    boost::optional<vector<int>> get_value (const string &s) // name is mandatory for translator
+    T Cast (string& s) const;
+
+public:
+    typedef string internal_type; // mandatory to define translator
+    typedef vector<T> external_type; // id.
+
+    boost::optional<external_type> get_value (const string &s) const // name is mandatory for translator
     {
         boost::char_separator<char> sep{" "};
         boost::tokenizer<boost::char_separator<char>> tok{s,sep};
 
-        vector<int> IOVs; 
+        Tokenise::external_type results; 
         for (const auto& t: tok) {
-            int IOV = stoi(boost::trim_copy(t));
-            IOVs.push_back(IOV);
+            auto tt = boost::trim_copy(t);
+            T ttt = Cast(tt);
+            results.push_back(ttt);
         }
 
-        return IOVs;
+        return results;
     }
+
 };
+template<> string Tokenise<string>::Cast (string& s) const { return s; }
+template<> int Tokenise<int>::Cast (string& s) const { return stoi(s); }
+
+static const Tokenise<int   > tok_int;
+static const Tokenise<string> tok_str;
 
 // Example of DAGMAN:
 //
@@ -144,8 +155,7 @@ int validateAlignment
         string name = it.first;
         cout << name << endl;
 
-        static GetIOVs getiovs;
-        vector<int> IOVs = it.second.get<vector<int>>("IOVs", getiovs);
+        vector<int> IOVs = it.second.get<vector<int>>("IOVs", tok_int);
         it.second.erase("IOVs");
 
         for (int IOV: IOVs) {
@@ -160,7 +170,6 @@ int validateAlignment
             string twig_ref  = "alignments." + it.second.get<string>("reference"),
                    twig_test = "alignments." + it.second.get<string>("test");
 
-            // TODO: LFS path
             job.tree.put<string>("LFS", LFS.c_str());
             job.tree.put_child(twig_ref, main.get_child(twig_ref));
             job.tree.put_child(twig_test, main.get_child(twig_test));
@@ -171,7 +180,37 @@ int validateAlignment
         }
     }
 
-    // TODO: DMRs
+    cout << "Generating DMR configuration files" << endl;
+    for (pair<string,pt::ptree> it: main.get_child("validations.DMR.single")) {
+
+        string name = it.first;
+        cout << name << endl;
+
+        vector<int> IOVs = it.second.get<vector<int>>("IOVs", tok_int);
+        it.second.erase("IOVs");
+
+        for (int IOV: IOVs) {
+            it.second.put<int>("IOV", IOV);
+
+            fs::path subdir = dir / fs::path("DMR/single") / name / fs::path(to_string(IOV));
+            cout << "The validation will be performed in " << subdir << endl;
+
+            cout << "Declaring job" << endl;
+            Job job("DMR_single_" + name + '_' + to_string(IOV), "DMR", subdir);
+
+            job.tree.put<string>("LFS", LFS.c_str());
+
+            vector<string> alignments = it.second.get<vector<string>>("alignments", tok_str);
+            for (string& alignment: alignments) {
+                string twig = "alignments." + alignment;
+                job.tree.put_child(twig, main.get_child(twig));
+            }
+            job.tree.put_child(name, it.second);
+
+            cout << "Queuing job" << endl;
+            dag << job;
+        }
+    }
 
     //Job single1(dir / "single1", tree, "DMRsingle"),
     //    single2(dir / "single2", tree, "DMRsingle");

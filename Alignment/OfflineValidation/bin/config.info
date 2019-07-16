@@ -65,7 +65,7 @@ validations
         {
             TheDataIsoMu
             {
-                alignment "UL17 EOY17"
+                alignments "UL17 EOY17"
                 maxevents 2000000                       
                 maxtracks 1800000                       
                 maxhits 300                             
@@ -77,7 +77,7 @@ validations
             }
             MyMCisoMuValidation
             {
-                alignment MC17
+                alignments MC17
                 maxevents 2000000                       
                 maxtracks 1800000                       
                 maxhits 300                             
@@ -85,6 +85,7 @@ validations
                 dataset MC_Filename_*_cff.py
                 trackcollection ALCARECOTkAlMuonIsolated
                 magneticfield true                      
+                IOVs 1
             }
         }
 
