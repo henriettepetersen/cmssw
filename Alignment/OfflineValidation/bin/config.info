@@ -37,7 +37,13 @@ alignments
         color kGreen+2
         style 2102
         title MC17
-        file 
+        files
+        {
+            DMR
+            {
+                TheDataIsoMu /path/to/rootfile.root
+            }
+        }
     }
 }
 
@@ -93,7 +99,7 @@ validations
         {
             DataMC
             {
-                single "Data MC"
+                single "TheDataIsoMu MyMCisoMuValidation"
                 legendoptions mean
                 usefit false
                 curves plain
@@ -101,7 +107,7 @@ validations
             }
             UL
             {
-                single Data
+                single TheDataIsoMu
                 legendoptions "mean rms"
                 usefit false
                 curves "plain split layers"
