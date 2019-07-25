@@ -504,7 +504,7 @@ def createMergeScript( path, validations, options ):
         for referenceName in validation.filesToCompare:
             validationtype = type(validation)
             validationName = validation.name
-            if referenceName == "Tracker_defaultRange" or referenceName == "Tracker_autoRange":
+            if validation.config.has_section("IOV") and (referenceName == "Tracker_defaultRange" or referenceName == "Tracker_autoRange"):
                 referenceName = iov
             if issubclass(validationtype, PreexistingValidation):
                 validationName = validation.originalValName
@@ -539,8 +539,8 @@ def createMergeScript( path, validations, options ):
                 repMap[key]["mergeParallelFilePrefixes"] = ""
                 repMap[key]["createResultsDirectory"]=""
 
-    print("comparisonLists")
-    pprint.pprint(comparisonLists)
+    #print("comparisonLists")
+    #pprint.pprint(comparisonLists)
     anythingToMerge = []
 
     for (validationtype, validationName, referenceName), validations in comparisonLists.iteritems():
