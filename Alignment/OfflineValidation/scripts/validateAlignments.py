@@ -141,8 +141,8 @@ class ValidationJob(ValidationBase):
                                       "<alignment> <reference>'.")
             if len( firstAlignList ) > 1:
                 firstRun = firstAlignList[1]
-            elif self.config.has_section("IOV"):
-                firstRun = self.config.get("IOV", "iov")
+            elif config.has_section("IOV"):
+                firstRun = config.get("IOV", "iov")
             else:
                 raise AllInOneError("Have to provide a run number for geometry comparison")
             firstAlign = Alignment( firstAlignName, config, firstRun )
@@ -154,8 +154,8 @@ class ValidationJob(ValidationBase):
             else:
                 if len( secondAlignList ) > 1:
                     secondRun = secondAlignList[1]
-                elif self.config.has_section("IOV"):
-                    secondRun = self.config.get("IOV", "iov")
+                elif config.has_section("IOV"):
+                    secondRun = config.get("IOV", "iov")
                 else:
                     raise AllInOneError("Have to provide a run number for geometry comparison")
                 secondAlign = Alignment( secondAlignName, config,
@@ -214,14 +214,6 @@ class ValidationJob(ValidationBase):
                           os.path.abspath( self.commandLineOptions.Name) )
 
     def runJob( self ):
-        #if self.preexisting:
-        #    if self.validation.jobid:
-        #        self.batchJobIds.append(self.validation.jobid)
-        #    log = ">             " + self.validation.name + " is already validated."
-        #    return log
-        #else:
-        #    if self.validation.jobid:
-        #        print("jobid {} will be ignored, since the validation {} is not preexisting".format(self.validation.jobid, self.validation.name))
         general = self.config.getGeneral()
         log = ""
 
@@ -388,12 +380,12 @@ class ValidationJobMultiIOV(ValidationBase):
                     if "preexisting" in self.valType:
                         if self.valType == "preexistingoffline":
                             validationClassName = "AlignmentValidation"
-                        elif self.valType == "preexistingmcValidate":
-                            validationClassName = "MonteCarloValidation"
-                        elif self.valType == "preexistingsplit":
-                            validationClassName = "TrackSplittingValidation"
-                        elif self.valType == "preexistingprimaryvertex":
-                            validationClassName = "PrimaryVertexValidation"
+                        #elif self.valType == "preexistingmcValidate":
+                        #    validationClassName = "MonteCarloValidation"
+                        #elif self.valType == "preexistingsplit":
+                        #    validationClassName = "TrackSplittingValidation"
+                        #elif self.valType == "preexistingprimaryvertex":
+                        #    validationClassName = "PrimaryVertexValidation"
                         else:
                             raise AllInOneError("Unknown validation mode for preexisting option:'%s'"%self.valType)
                         preexistingEosdirPath = os.path.join("AlignmentValidation", preexistingEosdir, valType + "_" + valName + "_%s"%iov)
@@ -439,8 +431,6 @@ class ValidationJobMultiIOV(ValidationBase):
 
         with open("{}/validation.dagman".format(outdir), "w") as dagman:
             parents = {}
-            #print("ValidationJob.condorConf")
-            #pprint.pprint(ValidationJob.condorConf)
             for (valType, valName, iov), alignments in six.iteritems(ValidationJob.condorConf):
 
                 parents[(valType, valName, iov)] = []
@@ -463,8 +453,6 @@ class ValidationJobMultiIOV(ValidationBase):
                 if len(parents[(valType, valName, iov)]) != 0:
                     dagman.write('PARENT {} '.format(" ".join([parent for parent in parents[(valType, valName, iov)]])) + 'CHILD Merge_{}_{}_{}'.format(valType, valName, iov) + "\n")
 
-        #print("condorConf")
-        #pprint.pprint(ValidationJob.condorConf)
         submitCommands = ["condor_submit_dag -no_submit -outfile_dir {} {}/validation.dagman".format(dagmanLog, outdir), "condor_submit {}/validation.dagman.condor.sub".format(outdir)]
 
         for command in submitCommands:
@@ -498,8 +486,6 @@ def createMergeScript( path, validations, options ):
     for validation in validations:
         if validation.config.has_section("IOV"):
             iov = validation.config.get("IOV", "iov")
-            #validationtype = type(validation)
-            #if issubclass(validationtype, OfflineValidation):
             validation.defaultReferenceName = iov
         for referenceName in validation.filesToCompare:
             validationtype = type(validation)
@@ -599,22 +585,10 @@ def createMergeScript( path, validations, options ):
             repMap[(validationtype, validationName, referenceName)]["createResultsDirectory"]=replaceByMap(configTemplates.createResultsDirectoryTemplate, repMap[(validationtype, validationName, referenceName)])
             filePath = os.path.join(path, "TkAlMerge.sh")
 
-        #print("referenceName")
-        #print(referenceName)
         theFile = open( filePath, "w" )
         theFile.write( replaceByMap( configTemplates.mergeTemplate, repMap[(validationtype, validationName, referenceName)]) )
         theFile.close()
         os.chmod(filePath,0o755)
-        #print("scriptsdir")
-        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["scriptsdir"])
-        #print("workdir")
-        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["workdir"])
-        #print("datadir")
-        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["datadir"])
-        #print("eosdir")
-        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["eosdir"])
-        #print("logdir")
-        #pprint.pprint(repMap[(validationtype, validationName, referenceName)]["logdir"])
 
 def loadTemplates( config ):
     if config.has_section("alternateTemplates"):

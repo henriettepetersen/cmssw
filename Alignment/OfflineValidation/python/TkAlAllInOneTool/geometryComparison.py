@@ -238,7 +238,7 @@ class GeometryComparison(GenericValidation):
                         +".root\",\".oO[name]Oo.."
                         +name+"_ArrowPlots\")'\n")
                    repMap["runComparisonScripts"] += \
-                       ("rfmkdir -p .oO[datadir]Oo./.oO[name]Oo."
+                       ("mkdir -p .oO[datadir]Oo./.oO[name]Oo."
                         ".Comparison_common"+name+"_Images/ArrowPlots\n")
                    repMap["runComparisonScripts"] += \
                        ("find .oO[name]Oo.."+name+"_ArrowPlots "
