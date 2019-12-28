@@ -1,0 +1,11 @@
+*/
+*.o
+*.so
+*.root
+*.pdf
+*.ini
+*.old
+*.bckp
+validateAlignment
+DMRsingle
+dag
