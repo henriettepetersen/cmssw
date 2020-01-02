@@ -1,4 +1,3 @@
-*/
 *.o
 *.so
 *.root
@@ -6,6 +5,11 @@
 *.ini
 *.old
 *.bckp
+*.info
+!config.info
 validateAlignment
-DMRsingle
+single
+merge
 dag
+MyLFS/
+getINFO
