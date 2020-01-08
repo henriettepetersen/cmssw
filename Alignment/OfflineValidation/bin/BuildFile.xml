@@ -12,4 +12,4 @@
 <bin name="DMRmerge" file="DMRmerge.cc" />
 <bin name="DMRtrends" file="DMRtrends.cc" />
 
-<bin name="validateAlignment" file="validateAlignment.cc" />
+<bin name="validateAlignment" file="validateAlignment.cc,validateAlignmentProgramOptions.cc" />

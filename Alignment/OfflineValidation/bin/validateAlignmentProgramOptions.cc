@@ -4,15 +4,16 @@
 #include <iomanip>
 #include <experimental/filesystem>
 
-using namespace std;
-namespace fs = experimental::filesystem;
-
 #include <boost/version.hpp>
 #include <boost/program_options.hpp>
 
+#include "validateAlignmentProgramOptions.h"
+
+using namespace std;
+namespace fs = experimental::filesystem;
 namespace po = boost::program_options; // used to read the options from command line
 
-#include "validateAlignmentProgramOptions.h"
+namespace AllInOneConfig {
 
 void check_file (string file)
 {
@@ -114,3 +115,5 @@ void ValidationProgramOptions::parser (int argc, char * argv[])
     // which can be used to load options from environment variables.
     // The class boost::environment_iterator lets you iterate over environment variables.
 }
+
+} // end of namespace

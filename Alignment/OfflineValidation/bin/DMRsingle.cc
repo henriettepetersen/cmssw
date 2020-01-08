@@ -1,3 +1,6 @@
+#include <cstdlib>
+#include <iostream>
+
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 
@@ -10,5 +13,6 @@ namespace fs = experimental::filesystem;
 
 int main (int argc, char * argv[])
 {
-
+    cout << "hi from " << __FILE__ << endl;
+    return EXIT_SUCCESS;
 }

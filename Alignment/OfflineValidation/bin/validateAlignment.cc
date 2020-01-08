@@ -8,14 +8,12 @@
 // STL
 
 #include <string>
+//#include <algorithm>
 #include <numeric>
 #include <map>
 //#include <any>
 //#include <optional>
 #include <experimental/filesystem>
-
-using namespace std;
-namespace fs = experimental::filesystem;
 
 #include "validateAlignmentProgramOptions.h"
 
@@ -29,12 +27,13 @@ namespace fs = experimental::filesystem;
 
 #include <boost/program_options/errors.hpp>
 
-#include <boost/algorithm/string.hpp>
-
-#include <boost/tokenizer.hpp>
+using namespace std;
+namespace fs = experimental::filesystem;
 
 namespace pt = boost::property_tree; // used to read the config file
 namespace po = boost::program_options; // used to read the options from command line
+
+using namespace AllInOneConfig;
 
 // `boost::optional` allows to safely initialiase an object
 // example:
@@ -44,36 +43,7 @@ namespace po = boost::program_options; // used to read the options from command 
 // ```
 // NB: std::optional exists in C++17 but there are issues when using Property Trees...
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-// just a "translator" to get the IOVs from a space-separated string into a vector of integers
-template<typename T> class Tokenise {
-
-    T Cast (string& s) const;
-
-    public:
-    typedef string internal_type; // mandatory to define translator
-    typedef vector<T> external_type; // id.
-
-    boost::optional<external_type> get_value (const internal_type &s) const // name is mandatory for translator
-    {
-        boost::char_separator<char> sep{" "};
-        // TODO: replace all EOLs and multiple spaces by a single space
-        boost::tokenizer<boost::char_separator<char>> tok{s,sep};
-
-        external_type results; 
-        for (const auto& t: tok) {
-            auto tt = boost::trim_copy(t);
-            T ttt = Cast(tt);
-            //any tt = boost::trim_copy(t); // TODO: use any
-            //T ttt = any_cast<T>(tt);
-            results.push_back(ttt);
-        }
-        return results;
-    }
-};
-template<> string Tokenise<string>::Cast (string& s) const { return s; }
-template<> int Tokenise<int>::Cast (string& s) const { return stoi(s); }
-#endif
+#include "toolbox.h"
 
 static const Tokenise<int   > tok_int;
 static const Tokenise<string> tok_str;
@@ -152,13 +122,30 @@ class Validation {
 
     vector<int> GetIOVsFromTree (const pt::ptree& tree);
 
+    //struct Queue {
+    //    string type;
+    //    vector<int> IOVs;
+    //    void Single (); // job for one geometry & one IOV
+    //    void Merge (); // merge job for several geometries but one IOV
+    //    void Trend (); // merge job for several IOVs
+
+    //    Queue (string Type) :
+    //        type(Type)
+    //    { }
+    //};
+    //Queue DMRjobs;
+
+    pair<string, vector<int>> PrepareDMRsingle (string name, pt::ptree& tree);
+    void PrepareDMRmerge ();
+    void PrepareDMRtrend ();
+
 public:
     Validation //!< constructor
         (string file); //!< name of the INFO config file
 
     void PrepareGCP (); //!< configure Geometry Comparison Plotter
     void PrepareDMR (); //!< configure "offline validation", measuring the local performance
-    // TODO: PV, etc.
+    // TODO: PV, Zµµ, MTS, etc.
 
     void CloseDag (); //!< close the DAG man
     int SubmitDag () const; //!< submit the DAG man
@@ -200,13 +187,17 @@ Validation::Validation (string file)
 
     alignments = main_tree.get_child("alignments");
 
-    //if (!main_tree.count("validations")) throw pt::ptree_bad_path("No validation found", "validations");
+    if (!main_tree.count("validations")) {
+        //throw pt::ptree_bad_path("No validation found", "validations"); // TODO
+        cerr << "No validation found!\n";
+        exit(EXIT_FAILURE);
+    }
 
     GCP = main_tree.get_child_optional("validations.GCP");
     DMR = main_tree.get_child_optional("validations.DMR");
 
     if (!GCP && !DMR) {
-        cerr << "No validation found!\n";
+        cerr << "No known validation found!\n";
         exit(EXIT_FAILURE);
     }
 
@@ -262,63 +253,54 @@ void Validation::PrepareGCP ()
             dag << job;
         }
     }
-
 }
 
-void Validation::PrepareDMR ()
+pair<string, vector<int>> Validation::PrepareDMRsingle (string name, pt::ptree& tree)
 {
-    if (!DMR) return;
+    cout << "DMR: " << name << endl;
 
-    boost::optional<pt::ptree&> singles = DMR->get_child_optional("single"),
-                                merges  = DMR->get_child_optional("merge"),
-                                trends  = DMR->get_child_optional("trend");
+    vector<int> IOVs = GetIOVsFromTree(tree);
+    bool multiIOV = IOVs.size() > 1;
 
-    // TODO: look up preexisting validation
-    // TODO: split into subroutines
-
-    map<string,vector<int>> DMRsingles; // key = name, value = IOV list
-    if (singles) {
-        cout << "Generating DMR configuration files" << endl;
-        for (pair<string,pt::ptree> it: *singles) {
-
-            string name = it.first;
-            cout << "DMR: " << name << endl;
-
-            DMRsingles[name] = GetIOVsFromTree(it.second);
-            bool multiIOV = DMRsingles[name].size() > 1;
-
-            for (int IOV: DMRsingles[name]) {
-                it.second.put<int>("IOV", IOV);
-
-                fs::path subdir = dir / fs::path("DMR/single") / name;
-                if (multiIOV) subdir /= fs::path(to_string(IOV));
-                cout << "The validation will be performed in " << subdir << endl;
-
-                string jobname = "DMRsingle_" + name;
-                if (multiIOV) jobname +=  '_' + to_string(IOV);
-
-                Job job(jobname, "DMR", subdir);
-
-                job.tree.put<string>("LFS", LFS.string());
-
-                vector<string> current_alignments = it.second.get<vector<string>>("alignments", tok_str);
-                for (string a: current_alignments) 
-                    job.tree.put_child(a, alignments.get_child(a));
-                job.tree.put_child(name, it.second);
-                if (job.tree.count("IOVs")) job.tree.erase("IOVs");
-
-                // TODO: look up the dataset
-                // TODO: write the name of the outputs in alignments
-
-                cout << "Queuing job" << endl;
-                dag << job;
-            }
-        }
+    // aligns = alignments, but variable name has already been taken :p
+    vector<string> aligns = tree.get<vector<string>>("alignments", tok_str);
+    // first, remove preexisting alignments
+    for (auto a = aligns.begin(); a != aligns.end(); /* nothing */) {
+        bool preexisting = alignments.get_child(*a).count(name);
+        if (preexisting) a->erase();
+        else             ++a;
     }
 
-    if (merges) {
-        for (pair<string,pt::ptree> it: *merges) {
+    // then create the jobs
+    for (int IOV: IOVs)
+    for (string a: aligns) {
+        tree.put<int>("IOV", IOV);
 
+        fs::path subdir = dir / fs::path("DMR/single") / name;
+        if (multiIOV) subdir /= fs::path(to_string(IOV));
+        cout << "The validation will be performed in " << subdir << endl;
+
+        string jobname = "DMRsingle_" + name;
+        if (multiIOV) jobname +=  '_' + to_string(IOV);
+
+        Job job(jobname, "DMR", subdir);
+        job.tree.put<string>("LFS", LFS.string());
+        job.tree.put_child("alignments." + a, alignments.get_child(a));
+        job.tree.put_child(name, tree);
+        if (job.tree.count("IOVs")) job.tree.erase("IOVs");
+
+        // TODO: write the name of the outputs in alignments
+
+        cout << "Queuing job" << endl;
+        dag << job;
+    }
+
+    return { name, IOVs };
+}
+
+void Validation::PrepareDMRmerge ()
+{
+    // TODO
             string name = it.first;
             cout << name << endl;
 
@@ -334,6 +316,36 @@ void Validation::PrepareDMR ()
 
                 // TODO: IOVs?
             }
+}
+
+void Validation::PrepareDMRtrend ()
+{
+    // TODO
+}
+
+void Validation::PrepareDMR ()
+{
+    if (!DMR) return;
+
+    boost::optional<pt::ptree&> singles = DMR->get_child_optional("single"),
+                                merges  = DMR->get_child_optional("merge"),
+                                trends  = DMR->get_child_optional("trend");
+
+    map<int,vector<string>> singleJobs; // key = IOV, value = list of jobs
+
+    if (singles) {
+        cout << "Generating DMR single configuration files" << endl;
+        for (pair<string,pt::ptree>& it: *singles) {
+            auto DMRsingle = PrepareDMRsingle(it.first, it.second);
+            DMRsingles.insert( DMRsingle );
+        }
+    }
+
+    if (merges) {
+        cout << "Generating DMR merge configuration files" << endl;
+        for (pair<string,pt::ptree> it: *merges) {
+            auto DMRmerge = PrepareDMRmerge(it.first, it.second);
+            DMRmerges.insert( DMRmerge );
         }
     }
 
@@ -351,7 +363,7 @@ void Validation::CloseDag ()
 int Validation::SubmitDag () const
 {
     cout << "Submitting" << endl;
-    return system("echo condor_submit_dat "); // TODO: remove `echo`
+    return system("echo condor_submit_dag "); // TODO
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -362,6 +374,10 @@ int Validation::SubmitDag () const
 // is split into the different methods of the `Validation` class.
 int main (int argc, char * argv[])
 {
+    //any a = string("hi");
+    //cout << a.type().name() << endl;
+    //cout << any_cast<string>(a) << endl;
+    //return EXIT_SUCCESS;
     try {
         ValidationProgramOptions options;
         try {

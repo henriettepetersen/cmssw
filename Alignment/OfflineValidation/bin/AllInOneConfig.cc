@@ -52,6 +52,12 @@ General::General (pt::ptree tree) :
     eosdir(tree.get<string>("eosdir"))
 { }
 
+General::General (const General& c) :
+    name(c.name),
+    datadir(c.datadir),
+    eosdir(c.eosdir)
+{ }
+
 void General::Print () const
 {
     cout << "\nGeneral: name = " << name
@@ -127,11 +133,11 @@ DMR::DMR (string Name, pt::ptree tree) :
     dataset(tree.get<string>("dataset")),
     trackcollection(tree.get<string>("trackcollection")),
     path(tree.get("path", string())),
-    maxevents(tree.get<int>("maxevents")),
-    maxtracks(tree.get<int>("maxtracks")),
-    maxhits(tree.get<int>("maxhits")),
-    minhits(tree.get<int>("minhits")),
-    magneticfield(tree.get<bool>("magneticfield")),
+    maxevents(tree.get("maxevents", -1)),
+    maxtracks(tree.get("maxtracks", -1)),
+    maxhits(tree.get("maxhits", -1)),
+    minhits(tree.get("minhits", 15)),
+    magneticfield(tree.get("magneticfield", true)),
     IOVs(GetIOVs(tree.get("IOVs", string())))
 { }
 
@@ -204,6 +210,13 @@ Config::Config (pt::ptree tree) :
     alignments(GetChildren<Alignment>("alignment:", tree)),
     dmrs(GetChildren<DMR>("DMR:", tree)),
     plots(GetChildren<Plot>("plot:", tree))
+{ }
+
+Config::Config (const Config& c) :
+    general(c.general),
+    alignments(c.alignments),
+    dmrs(c.dmrs),
+    plots(c.plots)
 { }
 
 void Config::Print () const

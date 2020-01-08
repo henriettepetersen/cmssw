@@ -2,7 +2,6 @@
 #include <vector>
 
 #include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
 
 #include <experimental/filesystem>
 
@@ -24,8 +23,10 @@ struct General {
                 datadir, //!< output directory for the plots
                 eosdir; //!< output directory for the root files
 
-    General //!< Constructor
+    General //!< Main constructor
         (pt::ptree tree); //!< Tree should correspond to a INI file (although it could be generalised)
+    General //!< Copy constructor
+        (const General& g);
 
     void Print () const; //!< Print the content of the structure
 };
@@ -132,8 +133,10 @@ struct Config {
     // TODO: add other types of validation here, such as PV, etc.
     const std::vector<Plot> plots; //!< An "instance" of the validation
 
-    Config //!< Constructor, autotically wraps up everything, throws errors
+    Config //!< Main constructor
         (pt::ptree tree); //!< corresponds (almost) to INI format
+    Config //!< Copy constructor
+        (const Config& c);
 
     void Print () const; //!< Print the content of the structure
 };

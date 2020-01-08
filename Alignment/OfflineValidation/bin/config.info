@@ -128,3 +128,15 @@ validations
         }
     }
 }
+
+documentation
+{
+    website
+    {
+        URL http://www.cern.ch/me
+    }
+    latex
+    {
+        output /here/or/there
+    }
+}

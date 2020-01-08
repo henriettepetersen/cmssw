@@ -1,8 +1,8 @@
 universe = vanilla
-executable = $(scriptName).sh
-log = $(scriptName).stdlog
-error = $(scriptName).stderr
-output = $(scriptName).stdout
+executable = $(exec)
+log = logs/log
+error = logs/stderr
+output = logs/stdout
 requirements = (OpSysAndVer =?= "CentOS7")
 +JobFlavour = "tomorrow"
 +RequestMemory = 1024

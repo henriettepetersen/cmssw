@@ -3,6 +3,8 @@
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/positional_options.hpp>
 
+namespace AllInOneConfig {
+
 class ValidationProgramOptions {
 
     boost::program_options::options_description help, desc, hide;
@@ -10,6 +12,7 @@ class ValidationProgramOptions {
 
 public:
     // TODO: use optional<const T>?
+    // -> pb: how to choose between std::optional & boost::optional...
     std::string config;
     bool dry;
 
@@ -17,3 +20,5 @@ public:
     void helper (int argc, char * argv[]);
     void parser (int argc, char * argv[]);
 };
+
+}
