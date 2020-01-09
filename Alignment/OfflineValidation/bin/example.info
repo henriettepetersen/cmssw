@@ -1,22 +1,26 @@
-name MyValidation
-LFS /eos/cms/store/group/alca_trackeralign/AlignmentValidation/UL17/test
+name TheValidation
+LFS /afs/cern.ch/work/p/paconnor/example
+condor default.sub
 
 alignments
 {
     UL17
     {
         globaltag 106X_dataRun2_v4
-        condition TrackerAlignmentRcd
+        conditions
         {
-            connect frontier://FrontierProd/CMS_CONDITIONS
-            tag TrackerAlignment_2017_ultralegacy_v1
-            label ""
-        }
-        condition TrackerSurfaceDeformationRcd
-        {
-            connect frontier://FrontierProd/CMS_CONDITIONS
-            tag TrackerSurfaceDeformations_2017_ultralegacy_v1
-            label ""
+            TrackerAlignmentRcd
+            {
+                connect frontier://FrontierProd/CMS_CONDITIONS
+                tag TrackerAlignment_2017_ultralegacy_v1
+                label ""
+            }
+            TrackerSurfaceDeformationRcd
+            {
+                connect frontier://FrontierProd/CMS_CONDITIONS
+                tag TrackerSurfaceDeformations_2017_ultralegacy_v1
+                label ""
+            }
         }
         color kBlue
         style 2101
@@ -41,7 +45,10 @@ alignments
         {
             DMR
             {
-                TheDataIsoMu /path/to/rootfile.root
+                single
+                {
+                    TheDataIsoMu /path/to/rootfile
+                }
             }
         }
     }
@@ -55,13 +62,13 @@ validations
         {
             reference EOY17
             test UL17
-            IOVs "123456 234567"
+            IOV "123456 234567"
         }
         The2ndComparison
         {
             reference UL17
             test EOY17
-            IOVs "123456 234567"
+            IOV "123456 234567"
         }
     }
 
@@ -79,7 +86,20 @@ validations
                 dataset Data_Filename_*_cff.py
                 trackcollection ALCARECOTkAlMuonIsolated
                 magneticfield true                      
-                IOVs "123456 234567"                     
+                IOV "123456 345678"
+            }
+            TheDataIsoMu2
+            {
+                alignments "UL17 EOY17"
+                maxevents 2000000                       
+                maxtracks 1800000                       
+                maxhits 300                             
+                minhits 15                              
+                dataset Data_Filename_*_cff.py
+                trackcollection ALCARECOTkAlMuonIsolated
+                magneticfield true                      
+                IOV "123456 234567 345678"
+                condor nextweek.sub
             }
             MyMCisoMuValidation
             {
@@ -88,10 +108,9 @@ validations
                 maxtracks 1800000                       
                 maxhits 300                             
                 minhits 15                              
-                dataset MC_Filename_*_cff.py
+                dataset MC_Filename_cff.py
                 trackcollection ALCARECOTkAlMuonIsolated
                 magneticfield true                      
-                IOVs 1
             }
         }
 
@@ -99,7 +118,7 @@ validations
         {
             DataMC
             {
-                single "TheDataIsoMu MyMCisoMuValidation"
+                singles "TheDataIsoMu TheDataIsoMu2 MyMCisoMuValidation"
                 legendoptions mean
                 usefit false
                 curves plain
@@ -107,7 +126,7 @@ validations
             }
             UL
             {
-                single TheDataIsoMu
+                singles TheDataIsoMu
                 legendoptions "mean rms"
                 usefit false
                 curves "plain split layers"
@@ -126,17 +145,5 @@ validations
                 showlumi true
             }
         }
-    }
-}
-
-documentation
-{
-    website
-    {
-        URL http://www.cern.ch/me
-    }
-    latex
-    {
-        output /here/or/there
     }
 }
