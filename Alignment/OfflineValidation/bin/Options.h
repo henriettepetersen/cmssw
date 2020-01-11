@@ -12,7 +12,7 @@ class Options {
 
 public:
     std::string config, key;
-    bool dry;
+    bool dry, verbose, silent;
 
     Options (bool getter = false);
     void helper (int argc, char * argv[]);
