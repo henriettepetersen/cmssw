@@ -13,14 +13,14 @@
     <use name="boost_filesystem"/>
 </bin>
 
-<bin name="DMRsingle" file="single.cc,Options.cc">
+<bin name="DMRsingle" file="DMRsingle.cc,Options.cc">
     <use name="boost" />
     <use name="boost_program_options"/>
     <use name="boost_system"/>
     <use name="boost_filesystem"/>
 </bin>
 
-<bin name="DMRmerge" file="merge.cc,Options.cc">
+<bin name="DMRmerge" file="DMRmerge.cc,Options.cc">
     <use name="boost" />
     <use name="boost_program_options"/>
     <use name="boost_system"/>
