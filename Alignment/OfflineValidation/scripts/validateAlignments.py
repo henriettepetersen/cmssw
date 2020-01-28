@@ -7,6 +7,7 @@ import pprint
 import argparse
 
 import Alignment.OfflineValidation.TkAlAllInOneTool.GCP as GCP
+import Alignment.OfflineValidation.TkAlAllInOneTool.DMR as DMR
 
 def parser():
     parser = argparse.ArgumentParser(description = "AllInOneTool for validation of the tracker alignment", formatter_class=argparse.RawTextHelpFormatter)
@@ -38,6 +39,11 @@ def main():
         if validation == "GCP":
             jobs.extend(GCP.GCP(config, validationDir))
             subprocess.call(["cp", "-f", "{}/GCP".format(binDir), exeDir])
+
+        if validation == "DMR":
+            jobs.extend(DMR.DMR(config, validationDir))
+            subprocess.call(["cp", "-f", "{}/DMRsingle".format(binDir), exeDir])
+            subprocess.call(["cp", "-f", "{}/DMRmerge".format(binDir), exeDir])
 
      #  else:
        #     raise Exception("Unkown validation method: {}".format(validation)) 
