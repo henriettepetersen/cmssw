@@ -3,7 +3,6 @@
 import subprocess
 import json
 import os
-import pprint
 import argparse
 
 import Alignment.OfflineValidation.TkAlAllInOneTool.GCP as GCP
@@ -19,17 +18,17 @@ def main():
     ##Read parser arguments
     args = parser()
 
+    ##Read in AllInOne json config
+    with open(args.config, "r") as jsonFile:
+        config = json.load(jsonFile)
+
     ##Create working directory
-    validationDir = "{}/src/Validation".format(os.environ["CMSSW_BASE"])
+    validationDir = "{}/src/{}".format(os.environ["CMSSW_BASE"], config["name"])
     exeDir = "{}/executables".format(validationDir)
 
     binDir = "{}/bin/{}".format(os.environ["CMSSW_BASE"], os.environ["SCRAM_ARCH"])
     subprocess.call(["mkdir", "-p", validationDir])
     subprocess.call(["mkdir", "-p", exeDir])
-
-    ##Read in AllInOne json config
-    with open(args.config, "r") as jsonFile:
-        config = json.load(jsonFile)
 
     ##List with all jobs
     jobs = []
@@ -40,13 +39,13 @@ def main():
             jobs.extend(GCP.GCP(config, validationDir))
             subprocess.call(["cp", "-f", "{}/GCP".format(binDir), exeDir])
 
-        if validation == "DMR":
+        elif validation == "DMR":
             jobs.extend(DMR.DMR(config, validationDir))
             subprocess.call(["cp", "-f", "{}/DMRsingle".format(binDir), exeDir])
             subprocess.call(["cp", "-f", "{}/DMRmerge".format(binDir), exeDir])
 
-     #  else:
-       #     raise Exception("Unkown validation method: {}".format(validation)) 
+        else:
+            raise Exception("Unkown validation method: {}".format(validation)) 
             
     ##Create dir for DAG file and loop over all jobs
     subprocess.call(["mkdir", "-p", "{}/DAG/".format(validationDir)])
@@ -68,7 +67,12 @@ def main():
             ##Write command in dag file
             dag.write("JOB {} condor.sub\n".format(job["name"]))
             dag.write("DIR {} \n".format(job["dir"]))
-            dag.write('VARS {} exec="{}"\n\n'.format(job["name"], job["exe"]))
+            dag.write('VARS {} exec="{}"\n'.format(job["name"], job["exe"]))
+
+            if job["dependencies"]:
+                dag.write("PARENT {} CHILD {} \n".format(job["name"], " ".join(job["dependencies"])))
+
+            dag.write("\n")
 
 if __name__ == "__main__":
     main()
