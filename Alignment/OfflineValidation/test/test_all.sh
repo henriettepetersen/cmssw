@@ -3,4 +3,5 @@
 function die { echo $1: status $2 ; exit $2; }
 
 echo "TESTING Alignment/OfflineValidation ..."
-cmsRun ${LOCAL_TEST_DIR}/test_all_cfg.py || die "Failure running test_OfflineValidaiton_cfg.py" $? 
+#cmsRun ${LOCAL_TEST_DIR}/test_all_cfg.py || die "Failure running test_OfflineValidaiton_cfg.py" $? 
+python ${LOCAL_TEST_DIR}/test_all_cfg.py || die "Failure running test_OfflineValidaiton_cfg.py" $? 
