@@ -1,47 +1,4 @@
-#include "Alignment/OfflineValidation/macros/PlotAlignmentValidation.h"
-
-#include "Alignment/OfflineValidation/macros/TkAlStyle.cc"
-#include "Alignment/OfflineValidation/interface/TkOffTreeVariables.h"
-
-#include "Math/ProbFunc.h"
-
-#include "TAxis.h"
-#include "TCanvas.h"
-#include "TDirectory.h"
-#include "TDirectoryFile.h"
-#include "TF1.h"
-#include "TFile.h"
-#include "TGaxis.h"
-#include "TH2F.h"
-#include "THStack.h"
-#include "TKey.h"
-#include "TLatex.h"
-#include "TLegend.h"
-#include "TLegendEntry.h"
-#include "TPad.h"
-#include "TPaveStats.h"
-#include "TPaveText.h"
-#include "TProfile.h"
-#include "TRandom3.h"
-#include "TRegexp.h"
-#include "TROOT.h"
-#include "TString.h"
-#include "TStyle.h"
-#include "TSystem.h"
-#include "TTree.h"
-
-#include <algorithm>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <exception>
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <vector>
-
+#include "Alignment/OfflineValidation/interface/PlotAlignmentValidation.h"
 
 /*! \class PlotAlignmentValidation
  *  \brief Class PlotAlignmentValidation
@@ -538,6 +495,7 @@ void PlotAlignmentValidation::plotSS( const std::string& options, const std::str
   bool plotLayers = false;  // overrides plotLayerN
   //  bool plotRings  = false;  // Todo: implement this?
   bool plotSplits = false;
+  if(plotSplits);
   int plotSubDetN = 0;     // if zero, plot all
 
   TRegexp layer_re("layer=[0-9]+");
@@ -1138,7 +1096,7 @@ void PlotAlignmentValidation::plotChi2(const char *inputFile)
   TCanvas* normchi = NULL;
   TCanvas* chiprob = NULL;
   if (fi1 != NULL) {
-    mta1 = (TDirectoryFile*) fi1->Get("TrackerOfflineValidationStandalone");
+    mta1 = (TDirectoryFile*) fi1->Get("TrackerOfflineValidation");
     if(mta1 != NULL) {
       mtb1 = (TDirectoryFile*) mta1->Get("GlobalTrackVariables");
       if(mtb1 != NULL) {
@@ -1266,7 +1224,7 @@ THStack* PlotAlignmentValidation::addHists(const TString& selection, const TStri
     }
 
     bool histnamesfilled = false;
-    int phase = (bool)(f->Get("TrackerOfflineValidationStandalone/Pixel/P1PXBBarrel_1"));
+    int phase = (bool)(f->Get("TrackerOfflineValidation/Pixel/P1PXBBarrel_1"));
     if (residType.Contains("Res") && residType.Contains("Profile"))
     {
       TString basename = TString(residType).ReplaceAll("Res","p_res")
@@ -1312,7 +1270,7 @@ THStack* PlotAlignmentValidation::addHists(const TString& selection, const TStri
                 // so the numbers there do not correspond to the actual ring numbers
                 {
                   stringstream s;
-                  s << "TrackerOfflineValidationStandalone/Strip/TECEndcap_" << iEndcap
+                  s << "TrackerOfflineValidation/Strip/TECEndcap_" << iEndcap
                                                             << "/TECDisk_"   << iDisk
                                                             << "/TECSide_"   << iSide
                                                             << "/TECPetal_"  << iPetal
@@ -1331,7 +1289,7 @@ THStack* PlotAlignmentValidation::addHists(const TString& selection, const TStri
                 // so the numbers there do not correspond to the actual ring numbers
                 {
                   stringstream s;
-                  s << "TrackerOfflineValidationStandalone/Strip/TECEndcap_" << iEndcap
+                  s << "TrackerOfflineValidation/Strip/TECEndcap_" << iEndcap
                                                             << "/TECDisk_"   << iDisk
                                                             << "/TECSide_"   << iSide
                                                             << "/TECPetal_"  << iPetal
@@ -2038,7 +1996,7 @@ vector <TH1*>  PlotAlignmentValidation::findmodule (TFile* f, unsigned int modul
 		TString histnamex;
 		TString histnamey;
         //read necessary branch/folder
-        auto t = (TTree*)f->Get("TrackerOfflineValidationStandalone/TkOffVal");
+        auto t = (TTree*)f->Get("TrackerOfflineValidation/TkOffVal");
 
         TkOffTreeVariables *variables=0;
         t->SetBranchAddress("TkOffTreeVariables", &variables);

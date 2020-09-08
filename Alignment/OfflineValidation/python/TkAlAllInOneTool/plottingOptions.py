@@ -245,6 +245,8 @@ def PlottingOptions(config, valType):
         if config is None:
             raise ValueError("Have to provide a config the first time you call PlottingOptions for {}".format(valType))
         globalDictionaries.plottingOptions[valType] = plottingOptionsClasses[valType](config)
+    #print("globalDictionaries.plottingOptions[valType].getRepMap()")
+    #pprint.pprint(globalDictionaries.plottingOptions[valType].getRepMap())
     return globalDictionaries.plottingOptions[valType].getRepMap()
 
 

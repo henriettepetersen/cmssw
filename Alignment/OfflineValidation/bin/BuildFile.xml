@@ -1,9 +1,13 @@
-<flags CXXFLAGS="-g -DDEBUG -O3 -Wall -std=c++17" />
+<flags CXXFLAGS="-g -Wall -DDEBUG -O3 -Wall -std=c++17" />
 
 <use name="root" />
 <use name="rootgraphics"/>
-
+<use name="boost" />
+<use name="boost_program_options"/>
+<use name="boost_system"/>
+<use name="boost_filesystem"/>
+<use name="Alignment/OfflineValidation"/>
 <lib name="stdc++fs" />
 
+<bin name="DMRmerge" file="DMRmerge.cc,Options.cc" />
 <bin name="DMRtrends" file="DMRtrends.cc" />
-

@@ -1,5 +1,16 @@
 #include "GeometryComparisonPlotter.h"
 
+#include <iostream>
+
+#include <TStyle.h>
+#include <TGraph.h>
+#include <TMultiGraph.h>
+#include <TCanvas.h>
+#include <TPaveText.h>
+#include <TLatex.h>
+
+using namespace std;
+
 /***********************************************************************************/
 /*                            GEOMETRY COMPARISON PLOTTER                          */
 /* See the talk of 15 January 2015 for short documentation and the example script. */
@@ -8,19 +19,14 @@
 /*                                             Thanks a million <3                 */
 /***********************************************************************************/
 
-// NOTE: look for "TO DO" as a keyword to now what should be upgraded in later versions.... 
-
-
-// modes
-#define TALKATIVE   // get some comments while processing
-//#define DEBUG     // get a lot of comments while processing + canvases -> resource-consuming!
-
 // MACROS
 #define INSIDE_VECTOR(vector) \
     cout << #vector << "={"; for (unsigned int i = 0 ; i < vector.size()-1 ; i++) cout << vector[i] << ","; cout << vector.back() << "}";
 #define CHECK_MAP_CONTENT(m,type) \
     for (map<TString,type>::iterator it = m.begin() ; it != m.end() ; it++) \
-        cout << __FILE__ << ":" << __LINE__ << ":Info: " << #m << "[" << it->first << "]=" << it->second << endl;
+        cout << "" << #m << "[" << it->first << "]=" << it->second << endl;
+
+int GeometryComparisonPlotter::canvas_index = 0;
 
 // CONSTRUCTOR AND DESTRUCTOR
 GeometryComparisonPlotter::GeometryComparisonPlotter (TString tree_file_name,
@@ -42,13 +48,7 @@ GeometryComparisonPlotter::GeometryComparisonPlotter (TString tree_file_name,
     _print(true),       // print the graphs in a file (e.g. pdf)
     _legend(true),      // print the graphs in a file (e.g. pdf)
     _write(true),       // write the graphs in a root file
-    _batchMode(
-#ifdef DEBUG
-            false        // false = display canvases (very time- and resource-consuming)
-#else
-            true         // true = no canvases
-#endif
-            ),           
+    _batchMode(false),  // false = display canvases (very time- and resource-consuming), true = no canvas
     _1dModule(true),    // cut on 1d modules
     _2dModule(true),    // cut on 2d modules
     _levelCut (DEFAULT_LEVEL),      // module level (see branch of same name)
@@ -57,13 +57,7 @@ GeometryComparisonPlotter::GeometryComparisonPlotter (TString tree_file_name,
     _window_width(DEFAULT_WINDOW_WIDTH),
     _window_height(DEFAULT_WINDOW_HEIGHT)
 {
-#ifdef TALKATIVE
-    cout << ">>> TALKATIVE MODE ACTIVATED <<<" << endl;
-#endif
-#ifdef DEBUG
-    cout << ">>> DEBUG MODE ACTIVATED <<<" << endl;
-    cout << __FILE__ << ":"<< __LINE__ << ":Info: inside constructor of GeometryComparisonPlotter utility"<< endl;
-#endif
+    cout << "Constructor of GeometryComparisonPlotter utility"<< endl;
 
     //_sublevel_names = {"PXB", "PXF", "TIB", "TID", "TOB", "TEC"}; // C++11
     _sublevel_names[0] = TString("PXB");
@@ -72,7 +66,6 @@ GeometryComparisonPlotter::GeometryComparisonPlotter (TString tree_file_name,
     _sublevel_names[3] = TString("TID");
     _sublevel_names[4] = TString("TOB");
     _sublevel_names[5] = TString("TEC");
-    // TO DO: handle other structures
 
     // read tree
     tree_file = new TFile(tree_file_name, "UPDATE");
@@ -107,9 +100,8 @@ GeometryComparisonPlotter::GeometryComparisonPlotter (TString tree_file_name,
     data->SetBranchAddress("dgamma"     ,&branch_f["dgamma"]);  
     if (data->GetBranch("rdphi") == 0x0) // in the case of rdphi branch not existing, it is created from r and dphi branches
     { 
-#ifdef TALKATIVE
-        cout << __FILE__ << ":" << __LINE__ << ":Info: computing the rdphi branch from r and dphi branches (assuming they exist...)" << endl;
-#endif
+        cout << "Computing the rdphi branch from r and dphi branches (assuming they exist...)" << endl;
+
         TBranch * br_rdphi = data->Branch("rdphi", &branch_f["rdphi"], "rdphi/F");
         for (unsigned int ientry = 0 ; ientry < data->GetEntries() ; ientry++)
         {
@@ -121,9 +113,7 @@ GeometryComparisonPlotter::GeometryComparisonPlotter (TString tree_file_name,
     else
         data->SetBranchAddress("rdphi",&branch_f["rdphi"]);
 
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: branch addresses set" << endl;
-#endif
+    cout << "Branch addresses set" << endl;
 
     // style
     gROOT->Reset();
@@ -172,20 +162,14 @@ GeometryComparisonPlotter::GeometryComparisonPlotter (TString tree_file_name,
     gStyle->SetPadBottomMargin(0.16);
     gStyle->SetPadLeftMargin(0.18);
 
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: end of constructor" << endl;
-#endif
+    cout << "End of constructor" << endl;
 }
 
 GeometryComparisonPlotter::~GeometryComparisonPlotter ()
 {
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: in destructor of the GeometryComparisonPlotter utility" << endl;
-#endif
+    cout << "Destructor of the GeometryComparisonPlotter utility" << endl;
     tree_file->Close();
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: ending." << endl;
-#endif
+    cout << "Ending." << endl;
 }
 
 // MAIN METHOD
@@ -201,7 +185,7 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
     {   \
         if (branch_f.find(branchname_vector[i]) == branch_f.end()) \
         {   \
-            cout << __FILE__ << ":" << __LINE__ << ":Error: The branch " << branchname_vector[i] << " is not recognised." << endl; \
+            cerr << "The branch " << branchname_vector[i] << " is not recognised.\n"; \
             return; \
         }   \
     }
@@ -210,10 +194,8 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 
     const unsigned int nentries = data->GetEntries();
 
-#ifdef TALKATIVE
-    cout << __FILE__ << ":" << __LINE__ << ":Info: ";    INSIDE_VECTOR(x);   cout << endl
-         << __FILE__ << ":" << __LINE__ << ":Info: ";    INSIDE_VECTOR(y);   cout << endl;
-#endif
+    INSIDE_VECTOR(x);
+    INSIDE_VECTOR(y);
 
     /// 0) min and max values
     // the max and min of the graphs are computed from the tree if they have not been manually input yet
@@ -228,11 +210,9 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
     LIMITS(x);
     LIMITS(y);
 
-#ifdef TALKATIVE 
     CHECK_MAP_CONTENT(_min,float);
     CHECK_MAP_CONTENT(_max,float);
     CHECK_MAP_CONTENT(_SF ,float);
-#endif
 
     /// 1) declare TGraphs and Histograms for profile plots if these are to be plotted
     // the idea is to produce at the end a table of 8 TMultiGraphs and histograms:
@@ -284,17 +264,17 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
     
     for (unsigned int ic = 0 ; ic <= NB_SUBLEVELS+1 ; ic++)
     {
-        c_global[ic] = new TCanvas (TString::Format("global_%s_%d", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ),
+        c_global[ic] = new TCanvas (Form("global_%s_%d", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ),
                                                                     canvas_index),
-                                    TString::Format("Global overview of the %s variables", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ) ),
+                                    Form("Global overview of the %s variables", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ) ),
                                    _window_width,
                                    _window_height);
         c_global[ic]->Divide(x.size(),y.size());
         
         if (_make_profile_plots) {
-			c_global_hist[ic] = new TCanvas (TString::Format("global_profile_plots_%s_%d", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ),
+			c_global_hist[ic] = new TCanvas (Form("global_profile_plots_%s_%d", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ),
 																							canvas_index),
-											TString::Format("Global overview profile plots of the %s variables", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ) ),
+											Form("Global overview profile plots of the %s variables", ic==0 ? "tracker" : ( ic==7 ? "pixel" : _sublevel_names[ic-1].Data() ) ),
 											_window_width,
 											_window_height);
 			c_global_hist[ic]->Divide(x.size(),y.size());
@@ -355,27 +335,20 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 	    }
 	}
    
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: Creation of the TGraph[" << x.size() << "][" << y.size() << "][" << NB_SUBLEVELS*NB_Z_SLICES*NB_MODULE_QUALITY << "] ended." << endl;
-#endif
+    cout << "Creation of the TGraph[" << x.size() << "][" << y.size() << "][" << NB_SUBLEVELS*NB_Z_SLICES*NB_MODULE_QUALITY << "] ended." << endl;
 
     /// 2) loop on the TTree data
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: Looping on the TTree" << endl;
-#endif
-#ifdef TALKATIVE
+    cout << "Looping on the TTree" << endl;
+
     unsigned int progress = 0;
-    cout << __FILE__ << ":" << __LINE__ << ":Info: 0%" << endl;
-#endif
+    cout << "0%" << endl;
     for (unsigned int ientry = 0 ; ientry < nentries ; ientry++)
     {
-#ifdef  TALKATIVE
         if (10*ientry/nentries != progress)
         {
             progress = 10*ientry/nentries;
-            cout << __FILE__ << ":" << __LINE__ << ":Info: " << 10*progress << "%" << endl;
+            cout << "" << 10*progress << "%" << endl;
         }
-#endif
         // load current tree entry
         data->GetEntry(ientry);
 
@@ -390,16 +363,13 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
             // CUTS on x[ix]
             if (_SF[x[ix]]*branch_f[x[ix]] > _max[x[ix]] || _SF[x[ix]]*branch_f[x[ix]] < _min[x[ix]]) 
             {
-//#ifdef DEBUG
-//                cout << "branch_f[x[ix]]=" << branch_f[x[ix]] << endl;
-//#endif
+                cout << "branch_f[x[ix]]=" << branch_f[x[ix]] << endl;
                 continue;
             }
 
             for (unsigned int iy = 0 ; iy < y.size() ; iy++)
             {
                 // CUTS on y[iy]
-                //if (x[ix] == y[iy])                                                   continue; // TO DO: handle display when such a case occurs
                 if (branch_i["sublevel"] < 1 || branch_i["sublevel"] > NB_SUBLEVELS) continue;
                 
                 // FILLING histograms take even those outside the plotted range into account
@@ -427,9 +397,7 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
                 // restrict scatter plots to chosen range
                 if (_SF[y[iy]]*branch_f[y[iy]] > _max[y[iy]] || _SF[y[iy]]*branch_f[y[iy]] < _min[y[iy]])
                 {
-//#ifdef DEBUG
-//                    cout << "branch_f[y[iy]]=" << branch_f[y[iy]] << endl;
-//#endif
+                    cout << "branch_f[y[iy]]=" << branch_f[y[iy]] << endl;
                     continue;
                 }
 
@@ -493,9 +461,7 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
             }
         }
     }
-#ifdef TALKATIVE
-    cout << __FILE__ << ":" << __LINE__ << ":Info: 100%\tLoop ended" << endl;
-#endif
+    cout << "100%\tLoop ended" << endl;
 
     /// 3) merge TGraph objects into TMultiGraph objects, then draw, print and write (according to the options _batchMode, _print and _write respectively)    
     gROOT->SetBatch(_batchMode); // if true, then equivalent to "root -b", i.e. no canvas
@@ -504,12 +470,10 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
         output = new TFile(_output_directory+TString(_output_filename), "UPDATE"); // possibly existing file will be updated, otherwise created
         if (output->IsZombie())
         {
-            cout << __FILE__ << ":" << __LINE__ << ":Error: Opening of " << _output_directory+TString(_output_filename) << " failed" << endl;
-            exit(-1);
+            cerr << "Opening of " << _output_directory+TString(_output_filename) << " failed.\n";
+            exit(EXIT_FAILURE);
         }
-#ifdef TALKATIVE
-        cout << __FILE__ << ":"<< __LINE__ << ":Info: output file is " << _output_directory+TString(_output_filename) << endl;
-#endif
+        cout << "utput file is " << _output_directory+TString(_output_filename) << endl;
     }
     // declaring TMultiGraphs and TCanvas
     // Usually more y variables than x variables
@@ -534,28 +498,24 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
     // running on the TGraphs to produce the TMultiGraph and draw/print them
     for (unsigned int ix = 0 ; ix < x.size() ; ix++)
     {
-#ifdef DEBUG
-        cout << __FILE__ << ":" << __LINE__ << ":Info: x[" << ix << "]="<< x[ix] << endl;
-#endif
+        cout << "x[" << ix << "]="<< x[ix] << endl;
 
         // looping on Y axes
         for (unsigned int iy = 0 ; iy < y.size() ; iy++)
         {
 
 
-#ifdef DEBUG
-            cout << __FILE__ << ":" << __LINE__ << ":Info: x[" << ix << "]=" << x[ix]
+            cout << "x[" << ix << "]=" << x[ix]
                                                 <<   " and y[" << iy << "]=" << y[iy] 
                                                 <<   "\t-> creating TMultiGraph" << endl;
-#endif
-            mgraphs[ix][iy][0] = new TMultiGraph (TString::Format("mgr_%s_vs_%s_tracker_%d", x[ix].Data(),
+            mgraphs[ix][iy][0] = new TMultiGraph (Form("mgr_%s_vs_%s_tracker_%d", x[ix].Data(),
                                                                                              y[iy].Data(),
                                                                                              canvas_index),        // name
                                                   //LateXstyle(x[ix]) + TString(" vs. ") + LateXstyle(y[iy]) + TString(" for Tracker") // graph title
                                                     TString (";") + LateXstyle(x[ix]) + " /" + _units[x[ix]]                     // x axis title
                                                   + TString (";") + LateXstyle(y[iy]) + " /" + _units[y[iy]]);                   // y axis title
                                                   
-            mgraphs[ix][iy][7] = new TMultiGraph (TString::Format("mgr_%s_vs_%s_pixel_%d", x[ix].Data(),
+            mgraphs[ix][iy][7] = new TMultiGraph (Form("mgr_%s_vs_%s_pixel_%d", x[ix].Data(),
                                                                                              y[iy].Data(),
                                                                                              canvas_index),        // name
                                                   //LateXstyle(x[ix]) + TString(" vs. ") + LateXstyle(y[iy]) + TString(" for Tracker") // graph title
@@ -569,24 +529,19 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
             {
                 unsigned short int igraph = NB_SUBLEVELS*NB_Z_SLICES*n_module_types - jgraph - 1; // reverse counting for humane readability (one of the sublevel takes much more place than the others)
 
-#ifdef DEBUG
-                cout << __FILE__ << ":" << __LINE__ << ":Info: writing TGraph to file" << endl;
-#endif
+                cout << "Writing TGraph to file" << endl;
+
                 // write into root file
                 if (_write) graphs[ix][iy][igraph]->Write();
                 if (graphs[ix][iy][igraph]->GetN() == 0)
                 {
-#ifdef TALKATIVE
-                    cout <<  __FILE__ << ":" << __LINE__ << ":Info: " << graphs[ix][iy][igraph]->GetName()  << " is empty." << endl;
-#endif
+                    cout <<  "" << graphs[ix][iy][igraph]->GetName()  << " is empty." << endl;
                     continue;
                 }
-#ifdef DEBUG
-                cout << __FILE__ << ":" << __LINE__ << ":Info: cloning, coloring and adding TGraph "
+                cout << "Cloning, coloring and adding TGraph "
                                                     << _sublevel_names[igraph%NB_SUBLEVELS] 
                                                     << (igraph >= NB_SUBLEVELS ? "(z<0)" : "(z>0)")
                                                     << " to global TMultiGraph" << endl;
-#endif
                 // clone to prevent any injure on the graph
                 TGraph * gr = (TGraph *) graphs[ix][iy][igraph]->Clone();
                 // color
@@ -600,15 +555,12 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
             /// SUBLEVELS (1..6)
             for (unsigned int isublevel = 1 ; isublevel <= NB_SUBLEVELS ; isublevel++)
             {
-#ifdef DEBUG
-                cout << __FILE__ << ":" << __LINE__ << ":Info: cloning, coloring and adding TGraph "
-                                                    << _sublevel_names[isublevel-1] << " to sublevel TMultiGraph" << endl;
-#endif
-                mgraphs[ix][iy][isublevel] = new TMultiGraph (TString::Format("%s_vs_%s_%s_%d", x[ix].Data(),
+                cout << "Cloning, coloring and adding TGraph " << _sublevel_names[isublevel-1] << " to sublevel TMultiGraph" << endl;
+
+                mgraphs[ix][iy][isublevel] = new TMultiGraph (Form("%s_vs_%s_%s_%d", x[ix].Data(),
                                                                                                 y[iy].Data(),
                                                                                                 _sublevel_names[isublevel-1].Data(),
                                                                                                 canvas_index),             // name
-                                                             //LateXstyle(x[ix]) + TString(" vs. ") + LateXstyle(y[iy]) + TString(" for ") +
                                                               _sublevel_names[isublevel-1]                                 // graph title
                                                               + TString (";") + LateXstyle(x[ix]) + " /" + _units[x[ix]]   // x axis title
                                                               + TString (";") + LateXstyle(y[iy]) + " /" + _units[y[iy]]); // y axis title
@@ -620,16 +572,14 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
                  graphs[ix][iy][4*NB_SUBLEVELS+isublevel-1]->SetMarkerColor(kGray+1);
                  graphs[ix][iy][5*NB_SUBLEVELS+isublevel-1]->SetMarkerColor(kRed-7);
                 if (graphs[ix][iy][             isublevel-1]->GetN() > 0) mgraphs[ix][iy][isublevel]->Add(graphs[ix][iy][             isublevel-1], "P"); //(mgraphs[ix][iy][isublevel-1]->GetListOfGraphs()==0?"AP":"P")); // z>0
-#ifdef TALKATIVE
-                else    cout << __FILE__ << ":" << __LINE__ << ":Info: graphs[ix][iy][isublevel-1]=" << graphs[ix][iy][isublevel-1]->GetName() << " is empty -> not added into " << mgraphs[ix][iy][isublevel]->GetName() << endl;
-#endif
+                else    cout << "graphs[ix][iy][isublevel-1]=" << graphs[ix][iy][isublevel-1]->GetName() << " is empty -> not added into " << mgraphs[ix][iy][isublevel]->GetName() << endl;
                 if (graphs[ix][iy][NB_SUBLEVELS+isublevel-1]->GetN() > 0) mgraphs[ix][iy][isublevel]->Add(graphs[ix][iy][NB_SUBLEVELS+isublevel-1], "P"); //(mgraphs[ix][iy][isublevel-1]->GetListOfGraphs()==0?"AP":"P")); // z<0
-#ifdef TALKATIVE
-                else    cout << __FILE__ << ":" << __LINE__ << ":Info: graphs[ix][iy][NB_SUBLEVEL+isublevel-1]=" << graphs[ix][iy][NB_Z_SLICES+isublevel-1]->GetName() << " is empty -> not added into " << mgraphs[ix][iy][isublevel]->GetName() << endl;
-#endif
+                else    cout << "graphs[ix][iy][NB_SUBLEVEL+isublevel-1]=" << graphs[ix][iy][NB_Z_SLICES+isublevel-1]->GetName() << " is empty -> not added into " << mgraphs[ix][iy][isublevel]->GetName() << endl;
+
 #if NB_Z_SLICES!=2
-                cout << __FILE__ << ":" << __LINE__ << ":Error: color code incomplete for Z slices..." << endl;
+                cerr << "Color code incomplete for Z slices...\n";
 #endif
+
 	             if (_module_plot_option == "all"){
 					if (graphs[ix][iy][2*NB_SUBLEVELS+isublevel-1]->GetN() > 0) mgraphs[ix][iy][isublevel]->Add(graphs[ix][iy][2*NB_SUBLEVELS+isublevel-1], "P");
 					if (graphs[ix][iy][3*NB_SUBLEVELS+isublevel-1]->GetN() > 0) mgraphs[ix][iy][isublevel]->Add(graphs[ix][iy][3*NB_SUBLEVELS+isublevel-1], "P");
@@ -647,15 +597,14 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
             // the individual canvases are saved, but the global are just drawn and will be saved later
             for (unsigned short int imgr = 0 ; imgr <= NB_SUBLEVELS+1 ; imgr++)
             {
-#ifdef DEBUG
-                cout << __FILE__ << ":" << __LINE__ << ":Info: treating individual canvases." << endl;
-#endif
+                cout << "Treating individual canvases." << endl;
+
                 // drawing into individual canvas and printing it (including a legend for the tracker canvas)
-                c[ix][iy][imgr] = new TCanvas (TString::Format("c_%s_vs_%s_%s_%d", x[ix].Data(),
+                c[ix][iy][imgr] = new TCanvas (Form("c_%s_vs_%s_%s_%d", x[ix].Data(),
                                                                                    y[iy].Data(),
                                                                                    imgr==0 ? "tracker" : ( imgr==7 ? "pixel" : _sublevel_names[imgr-1].Data() ),
                                                                                    canvas_index),
-                                               TString::Format("%s vs. %s at %s level", x[ix].Data(),
+                                               Form("%s vs. %s at %s level", x[ix].Data(),
                                                                                         y[iy].Data(),
                                                                                         imgr==0 ? "tracker" : ( imgr==7 ? "pixel" : _sublevel_names[imgr-1].Data() ) ),
                                                _window_width,
@@ -831,10 +780,10 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 	            /// TRACKER
 	            // fixing ranges and draw profile plot histos
 	            
-	            c_hist[ix][iy][0] = new TCanvas (TString::Format("c_hist_%s_vs_%s_tracker_%d", x[ix].Data(),
+	            c_hist[ix][iy][0] = new TCanvas (Form("c_hist_%s_vs_%s_tracker_%d", x[ix].Data(),
 																							   y[iy].Data(),
 																							   canvas_index),
-												TString::Format("Profile plot %s vs. %s at tracker level", x[ix].Data(),
+												Form("Profile plot %s vs. %s at tracker level", x[ix].Data(),
 																										   y[iy].Data()),
 																										   _window_width,
 																										   _window_height);
@@ -864,7 +813,7 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 	            }
 	            
 	            if (_print && !_print_only_global) c_hist[ix][iy][0]->Print(_output_directory 
-															+ TString::Format("Profile_plot_%s_vs_%s_tracker_%d", x[ix].Data(), y[iy].Data(), canvas_index)
+															+ Form("Profile_plot_%s_vs_%s_tracker_%d", x[ix].Data(), y[iy].Data(), canvas_index)
 															+ ExtensionFromPrintOption(_print_option),
 															_print_option);
 	
@@ -888,10 +837,10 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 	            /// PIXEL
 	            // fixing ranges and draw profile plot histos
 	            
-	            c_hist[ix][iy][7] = new TCanvas (TString::Format("c_hist_%s_vs_%s_pixel_%d", x[ix].Data(),
+	            c_hist[ix][iy][7] = new TCanvas (Form("c_hist_%s_vs_%s_pixel_%d", x[ix].Data(),
 																							   y[iy].Data(),
 																							   canvas_index),
-												TString::Format("Profile plot %s vs. %s at pixel level", x[ix].Data(),
+												Form("Profile plot %s vs. %s at pixel level", x[ix].Data(),
 																										   y[iy].Data()),
 																										   _window_width,
 																										   _window_height);
@@ -924,7 +873,7 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 	            }
 	            
 	            if (_print && !_print_only_global) c_hist[ix][iy][7]->Print(_output_directory 
-															+ TString::Format("Profile_plot_%s_vs_%s_pixel_%d", x[ix].Data(), y[iy].Data(), canvas_index)
+															+ Form("Profile_plot_%s_vs_%s_pixel_%d", x[ix].Data(), y[iy].Data(), canvas_index)
 															+ ExtensionFromPrintOption(_print_option),
 															_print_option);
 	
@@ -950,11 +899,11 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 	            {
 		
 					// Draw and print profile histograms
-	                c_hist[ix][iy][isublevel] = new TCanvas (TString::Format("c_hist_%s_vs_%s_%s_%d", x[ix].Data(),
+	                c_hist[ix][iy][isublevel] = new TCanvas (Form("c_hist_%s_vs_%s_%s_%d", x[ix].Data(),
 	                                                                                   y[iy].Data(),
 	                                                                                   isublevel==0?"tracker":_sublevel_names[isublevel-1].Data(),
 	                                                                                   canvas_index),
-	                                               TString::Format("Profile plot %s vs. %s at %s level", x[ix].Data(),
+	                                               Form("Profile plot %s vs. %s at %s level", x[ix].Data(),
 	                                                                                        y[iy].Data(),
 	                                                                                        isublevel==0?"tracker":_sublevel_names[isublevel-1].Data()),
 	                                               _window_width,
@@ -977,7 +926,7 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 	                histos[ix][iy][NB_SUBLEVELS+isublevel-1]->Draw("same pe0");
 	                
 	                if (_print && !_print_only_global) c_hist[ix][iy][isublevel]->Print(_output_directory 
-																	+ TString::Format("Profile_plot_%s_vs_%s_%s_%d", x[ix].Data(), y[iy].Data(),_sublevel_names[isublevel-1].Data(), canvas_index)
+																	+ Form("Profile_plot_%s_vs_%s_%s_%d", x[ix].Data(), y[iy].Data(),_sublevel_names[isublevel-1].Data(), canvas_index)
 																	+ ExtensionFromPrintOption(_print_option),
 																	_print_option);
 					
@@ -1072,9 +1021,7 @@ void GeometryComparisonPlotter::MakePlots (vector<TString> x, // axes to combine
 			
 	}
 		
-#ifdef TALKATIVE
-    cout << __FILE__ << ":" << __LINE__ << ":Info: End of MakePlots method" << endl;
-#endif
+    cout << "End of MakePlots method" << endl;
 
 }
 
@@ -1093,7 +1040,7 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
     {   \
         if (branch_f.find(branchname_vector[i]) == branch_f.end()) \
         {   \
-            cout << __FILE__ << ":" << __LINE__ << ":Error: The branch " << branchname_vector[i] << " is not recognised." << endl; \
+            cerr << "The branch " << branchname_vector[i] << " is not recognised.\n"; \
             return; \
         }   \
     }
@@ -1102,10 +1049,8 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
 
     const unsigned int nentries = data->GetEntries();
 
-#ifdef TALKATIVE
-    cout << __FILE__ << ":" << __LINE__ << ":Info: ";    INSIDE_VECTOR(x);   cout << endl;
-    cout << __FILE__ << ":" << __LINE__ << ":Info: ";    INSIDE_VECTOR(y);   cout << endl;
-#endif
+    INSIDE_VECTOR(x);
+    INSIDE_VECTOR(y);
 
 
     /// 0) min and max values
@@ -1121,11 +1066,9 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
     LIMITS(x);
     LIMITS(y);
 
-#ifdef TALKATIVE 
     CHECK_MAP_CONTENT(_min,float);
     CHECK_MAP_CONTENT(_max,float);
     CHECK_MAP_CONTENT(_SF ,float);
-#endif
 
     /// 1) declare histograms
     // the idea is to produce tables of the differences and the absolute positions containing mean and RMS values
@@ -1193,27 +1136,19 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
 		}
 	}
 
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: Creation of the TH1F[" << y.size() << "][" << NB_SUBLEVELS*NB_Z_SLICES*NB_X_SLICES << "] ended." << endl;
-#endif
+    cout << "Creation of the TH1F[" << y.size() << "][" << NB_SUBLEVELS*NB_Z_SLICES*NB_X_SLICES << "] ended." << endl;
 
     /// 2) loop on the TTree data
-#ifdef DEBUG
-    cout << __FILE__ << ":" << __LINE__ << ":Info: Looping on the TTree" << endl;
-#endif
-#ifdef TALKATIVE
+    cout << "Looping on the TTree" << endl;
     unsigned int progress = 0;
-    cout << __FILE__ << ":" << __LINE__ << ":Info: 0%" << endl;
-#endif
+    cout << "0%" << endl;
     for (unsigned int ientry = 0 ; ientry < nentries ; ientry++)
     {
-#ifdef  TALKATIVE
         if (10*ientry/nentries != progress)
         {
             progress = 10*ientry/nentries;
-            cout << __FILE__ << ":" << __LINE__ << ":Info: " << 10*progress << "%" << endl;
+            cout << "" << 10*progress << "%" << endl;
         }
-#endif
         // load current tree entry
         data->GetEntry(ientry);
 
@@ -1228,9 +1163,7 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
 			if (branch_i["sublevel"] < 1 || branch_i["sublevel"] > NB_SUBLEVELS) continue;
 			if (_SF[y[iy]]*branch_f[y[iy]] > _max[y[iy]] || _SF[y[iy]]*branch_f[y[iy]] < _min[y[iy]])
 			{
-//#ifdef DEBUG
-//                    cout << "branch_f[y[iy]]=" << branch_f[y[iy]] << endl;
-//#endif
+                cout << "branch_f[y[iy]]=" << branch_f[y[iy]] << endl;
 				continue;
 			}
 
@@ -1254,9 +1187,7 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
 			if (branch_i["sublevel"] < 1 || branch_i["sublevel"] > NB_SUBLEVELS) continue;
 			if (_SF[x[ix]]*branch_f[x[ix]] > _max[x[ix]] || _SF[x[ix]]*branch_f[x[ix]] < _min[x[ix]])
 			{
-//#ifdef DEBUG
-//                    cout << "branch_f[y[iy]]=" << branch_f[y[iy]] << endl;
-//#endif
+                cout << "branch_f[y[iy]]=" << branch_f[y[iy]] << endl;
 				continue;
 			}
 
@@ -1275,9 +1206,7 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
 			
 		}
     }
-#ifdef TALKATIVE
-    cout << __FILE__ << ":" << __LINE__ << ":Info: 100%\tLoop ended" << endl;
-#endif
+    cout << "100%\tLoop ended" << endl;
 
 	//~ TString rangeLabel = "";
 	// Calculate mean and standard deviation for each histogram
@@ -1360,9 +1289,7 @@ void GeometryComparisonPlotter::MakeTables (vector<TString> x, // axes to combin
 	WriteTable(x,NB_SUBLEVELS*NB_Z_SLICES*NB_X_SLICES,meanValuex,RMSx,"3",tableCaption,tableFileName);
 
 	
-#ifdef TALKATIVE
-    cout << __FILE__ << ":" << __LINE__ << ":Info: End of MakeLegends method" << endl;
-#endif
+    cout << "End of MakeLegends method" << endl;
 
 }
 
@@ -1398,7 +1325,7 @@ TString GeometryComparisonPlotter::LateXstyle (TString word)
 {
     word.ToLower();
     if (word.BeginsWith("d"))          word.ReplaceAll("d", "#Delta");
-    if      (word == TString("rdphi")) word = "r#Delta#phi";            // TO DO: find something less ad hoc...
+    if      (word == TString("rdphi")) word = "r#Delta#phi";
     else if (word.EndsWith("phi"))     word.ReplaceAll("phi", "#phi");
     else if (word.EndsWith("alpha"))   word.ReplaceAll("alpha", "#alpha");
     else if (word.EndsWith("beta"))    word.ReplaceAll("beta" , "#beta");
@@ -1411,7 +1338,7 @@ TString GeometryComparisonPlotter::LateXstyleTable (TString word)
 {
     word.ToLower();
     if (word.BeginsWith("d"))          word.ReplaceAll("d", "$\\Delta$");
-    if      (word == TString("rdphi")) word = "r$\\Delta\\phi$";            // TO DO: find something less ad hoc...
+    if      (word == TString("rdphi")) word = "r$\\Delta\\phi$";
     else if (word.EndsWith("phi"))     word.ReplaceAll("phi", "$\\phi$");
     else if (word.EndsWith("alpha"))   word.ReplaceAll("alpha", "$\\alpha$");
     else if (word.EndsWith("beta"))    word.ReplaceAll("beta" , "$\\beta$");
@@ -1437,7 +1364,7 @@ TString GeometryComparisonPlotter::ExtensionFromPrintOption (TString print_optio
     else if (print_option.Contains("root"))  return TString(".root");
     else 
     {
-        cout << __FILE__ << ":" << __LINE__ << ":Warning: unknown format. Returning .pdf, but possibly wrong..." << endl;
+        cerr << "Unknown format. Returning .pdf, but possibly wrong...\n";
                                              return TString(".pdf");
     }
 }
