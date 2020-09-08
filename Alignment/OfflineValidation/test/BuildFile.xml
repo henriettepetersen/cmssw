@@ -1,6 +1,10 @@
 <environment>
-  <bin   file="testAlignmentOfflineValidation.cpp">
-    <flags   TEST_RUNNER_ARGS=" /bin/bash Alignment/OfflineValidation/test test_all.sh"/>
-		<use   name="FWCore/Utilities"/>
-  </bin>
+    <bin   file="testAlignmentOfflineValidation.cpp" name="validateAlignments">
+        <flags TEST_RUNNER_ARGS=" /bin/bash Alignment/OfflineValidation/test validateAlignments.sh"/>
+        <use name="FWCore/Utilities"/>
+    </bin>
+    <bin   file="testAlignmentOfflineValidation.cpp" name="PVsingle">
+        <flags TEST_RUNNER_ARGS=" /bin/bash Alignment/OfflineValidation/test test_all.sh"/>
+        <use name="FWCore/Utilities"/>
+    </bin>
 </environment>
