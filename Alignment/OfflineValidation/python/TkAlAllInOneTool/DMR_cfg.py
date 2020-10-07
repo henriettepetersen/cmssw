@@ -270,6 +270,3 @@ if valiMode == "DQM":
 
 ##Let all sequences run
 process.p = cms.Path(process.seqTrackselRefit*seqTrackerOfflineValidation)
-
-for i in str(process.p).split("+"):
-    print(getattr(process, i).dumpPython())
