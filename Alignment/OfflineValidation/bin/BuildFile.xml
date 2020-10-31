@@ -10,4 +10,5 @@
 <lib name="stdc++fs" />
 
 <bin name="DMRmerge" file="DMRmerge.cc,Options.cc" />
+<bin name="PVmerge" file="PVmerge.cc,Options.cc" />
 <bin name="DMRtrends" file="DMRtrends.cc" />
